@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --hug-blue: #0066b3;
+  --hug-green: #2ecc71;
+  --hug-blue-dark: #004d8c;
+  --hug-green-dark: #27ae60;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-hug-blue: var(--hug-blue);
+  --color-hug-green: var(--hug-green);
+  --color-hug-blue-dark: var(--hug-blue-dark);
+  --color-hug-green-dark: var(--hug-green-dark);
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, monospace;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.proposal-document {
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+
+@media print {
+  body {
+    background: white;
+  }
+}
