@@ -11,7 +11,7 @@ Aplicação web para criar propostas comerciais de energia solar (On-Grid, Off-G
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/SEU_USUARIO/hug-brasil-propostas.git
+git clone https://github.com/Navesz/hug-brasil-propostas.git
 cd hug-brasil-propostas
 
 # 2. Instale as dependências
