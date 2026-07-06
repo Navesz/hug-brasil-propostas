@@ -10,7 +10,46 @@ Aplicação web para criar propostas comerciais de energia solar (On-Grid, Off-G
 
 ## Como rodar no seu computador
 
-### Opção A — Sem Git (mais simples)
+### Windows com Chocolatey (recomendado — sem Git)
+
+Abra o **PowerShell ou Prompt de Comando como Administrador** e siga os passos abaixo.
+
+**Passo 1 — Instalar o Node.js** (se ainda não tiver):
+
+```powershell
+choco install nodejs-lts -y
+```
+
+Feche e abra o terminal de novo. Confira se instalou:
+
+```powershell
+node -v
+npm -v
+```
+
+**Passo 2 — Baixar o projeto** (não precisa de Git):
+
+1. Abra: https://github.com/Navesz/hug-brasil-propostas
+2. Clique no botão verde **Code** → **Download ZIP**
+3. Extraia a pasta `hug-brasil-propostas` (ex.: em `C:\Users\SeuNome\Downloads\hug-brasil-propostas`)
+
+**Passo 3 — Instalar e rodar** (terminal normal, dentro da pasta do projeto):
+
+```powershell
+cd C:\Users\SeuNome\Downloads\hug-brasil-propostas
+npm install
+npm run dev
+```
+
+Troque o caminho acima pelo local onde você extraiu a pasta.
+
+**Passo 4 — Abrir no navegador:** http://localhost:3000
+
+Para parar o site, pressione `Ctrl + C` no terminal.
+
+---
+
+### Opção A — Sem Git (download ZIP)
 
 1. Abra: https://github.com/Navesz/hug-brasil-propostas
 2. Clique no botão verde **Code** → **Download ZIP**
@@ -26,6 +65,14 @@ npm run dev
 
 ### Opção B — Com Git
 
+Se quiser usar Git, pode instalar com Chocolatey:
+
+```powershell
+choco install git -y
+```
+
+Depois:
+
 ```bash
 git clone https://github.com/Navesz/hug-brasil-propostas.git
 cd hug-brasil-propostas
@@ -35,12 +82,13 @@ npm run dev
 
 Abra no navegador: **http://localhost:3000**
 
-### Windows (sem terminal avançado)
+### Windows (sem Chocolatey)
 
-1. Baixe o ZIP pelo link acima e extraia
-2. Entre na pasta do projeto
-3. Na barra de endereço do Explorer, digite `cmd` e Enter
-4. Digite `npm install` e depois `npm run dev`
+1. Instale o Node.js em https://nodejs.org/ (versão LTS)
+2. Baixe o ZIP em https://github.com/Navesz/hug-brasil-propostas
+3. Extraia a pasta do projeto
+4. Na barra de endereço do Explorer, digite `cmd` e Enter
+5. Digite `npm install` e depois `npm run dev`
 
 ## Scripts disponíveis
 
