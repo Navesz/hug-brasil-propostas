@@ -6,22 +6,41 @@ Aplicação web para criar propostas comerciais de energia solar (On-Grid, Off-G
 
 - [Node.js](https://nodejs.org/) 18 ou superior (recomendado: 20+)
 - npm (já vem com o Node.js)
+- Git é **opcional** (só se quiser clonar; dá para baixar em ZIP)
 
 ## Como rodar no seu computador
 
+### Opção A — Sem Git (mais simples)
+
+1. Abra: https://github.com/Navesz/hug-brasil-propostas
+2. Clique no botão verde **Code** → **Download ZIP**
+3. Extraia a pasta `hug-brasil-propostas` no computador
+4. Abra o terminal/prompt **dentro dessa pasta** e rode:
+
 ```bash
-# 1. Clone o repositório
+npm install
+npm run dev
+```
+
+5. Abra no navegador: **http://localhost:3000**
+
+### Opção B — Com Git
+
+```bash
 git clone https://github.com/Navesz/hug-brasil-propostas.git
 cd hug-brasil-propostas
-
-# 2. Instale as dependências
 npm install
-
-# 3. Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
 Abra no navegador: **http://localhost:3000**
+
+### Windows (sem terminal avançado)
+
+1. Baixe o ZIP pelo link acima e extraia
+2. Entre na pasta do projeto
+3. Na barra de endereço do Explorer, digite `cmd` e Enter
+4. Digite `npm install` e depois `npm run dev`
 
 ## Scripts disponíveis
 
