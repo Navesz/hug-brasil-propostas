@@ -5,24 +5,77 @@ const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 const MARGIN_MM = 8;
 
+const UNSUPPORTED_COLOR = /lab\(|oklch\(/i;
+
 async function waitForCharts(ms = 400): Promise<void> {
   await new Promise((r) => setTimeout(r, ms));
 }
 
-function prepareCloneForExport(element: HTMLElement): HTMLElement {
-  const clone = element.cloneNode(true) as HTMLElement;
-  clone.style.position = "absolute";
-  clone.style.left = "-99999px";
-  clone.style.top = "0";
-  clone.style.width = "210mm";
-  clone.style.maxWidth = "210mm";
-  clone.style.maxHeight = "none";
-  clone.style.height = "auto";
-  clone.style.overflow = "visible";
-  clone.style.boxShadow = "none";
-  clone.classList.add("pdf-export-clone");
-  document.body.appendChild(clone);
-  return clone;
+function walkParallelInlineStyles(source: Element, target: Element): void {
+  if (source instanceof HTMLElement && target instanceof HTMLElement) {
+    const computed = window.getComputedStyle(source);
+    for (let i = 0; i < computed.length; i++) {
+      const prop = computed[i];
+      const value = computed.getPropertyValue(prop);
+      if (!value || UNSUPPORTED_COLOR.test(value)) continue;
+      target.style.setProperty(prop, value, computed.getPropertyPriority(prop));
+    }
+  }
+
+  const sourceChildren = source.children;
+  const targetChildren = target.children;
+  for (let i = 0; i < sourceChildren.length; i++) {
+    if (targetChildren[i]) {
+      walkParallelInlineStyles(sourceChildren[i], targetChildren[i]);
+    }
+  }
+}
+
+function syncRechartsContent(source: Element, target: Element): void {
+  const sourceWrappers = source.querySelectorAll(".recharts-wrapper");
+  const targetWrappers = target.querySelectorAll(".recharts-wrapper");
+
+  sourceWrappers.forEach((wrapper, index) => {
+    const targetWrapper = targetWrappers[index];
+    if (!(wrapper instanceof HTMLElement) || !(targetWrapper instanceof HTMLElement)) {
+      return;
+    }
+
+    targetWrapper.innerHTML = wrapper.innerHTML;
+    const computed = window.getComputedStyle(wrapper);
+    targetWrapper.style.width = computed.width;
+    targetWrapper.style.height = computed.height;
+  });
+}
+
+function prepareCloneForPdfExport(clonedElement: HTMLElement): void {
+  clonedElement.style.maxWidth = "210mm";
+  clonedElement.style.width = "210mm";
+  clonedElement.style.maxHeight = "none";
+  clonedElement.style.height = "auto";
+  clonedElement.style.overflow = "visible";
+  clonedElement.style.boxShadow = "none";
+  clonedElement.classList.add("pdf-export-clone");
+}
+
+function stripUnsupportedColorStyles(clonedDoc: Document): void {
+  clonedDoc.querySelectorAll("style").forEach((node) => {
+    if (UNSUPPORTED_COLOR.test(node.textContent ?? "")) {
+      node.remove();
+    }
+  });
+
+  clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((node) => {
+    node.remove();
+  });
+
+  const reset = clonedDoc.createElement("style");
+  reset.textContent = `
+    .pdf-export-clone, .pdf-export-clone * {
+      box-sizing: border-box;
+    }
+  `;
+  clonedDoc.head.appendChild(reset);
 }
 
 function sliceCanvasToPages(
@@ -71,36 +124,44 @@ function sliceCanvasToPages(
   }
 }
 
+async function captureElementToCanvas(element: HTMLElement): Promise<HTMLCanvasElement> {
+  await waitForCharts();
+
+  return html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    logging: false,
+    backgroundColor: "#ffffff",
+    height: element.scrollHeight,
+    windowHeight: element.scrollHeight,
+    onclone: (clonedDoc, clonedElement) => {
+      const cloneRoot = clonedElement as HTMLElement;
+      prepareCloneForPdfExport(cloneRoot);
+      walkParallelInlineStyles(element, cloneRoot);
+      syncRechartsContent(element, cloneRoot);
+      stripUnsupportedColorStyles(clonedDoc);
+    },
+  });
+}
+
+async function buildPdfFromElement(element: HTMLElement): Promise<jsPDF> {
+  const canvas = await captureElementToCanvas(element);
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+  });
+  sliceCanvasToPages(canvas, pdf, A4_WIDTH_MM - MARGIN_MM * 2);
+  return pdf;
+}
+
 export async function generatePdfFromElement(
   element: HTMLElement,
   filename: string
 ): Promise<Blob> {
-  const clone = prepareCloneForExport(element);
-  await waitForCharts();
-
-  try {
-    const canvas = await html2canvas(clone, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      windowWidth: clone.scrollWidth,
-      height: clone.scrollHeight,
-    });
-
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-    });
-
-    const imgWidthMm = A4_WIDTH_MM - MARGIN_MM * 2;
-    sliceCanvasToPages(canvas, pdf, imgWidthMm);
-    pdf.save(filename);
-    return pdf.output("blob");
-  } finally {
-    document.body.removeChild(clone);
-  }
+  const pdf = await buildPdfFromElement(element);
+  pdf.save(filename);
+  return pdf.output("blob");
 }
 
 export async function sharePdfWhatsApp(
@@ -108,39 +169,22 @@ export async function sharePdfWhatsApp(
   filename: string,
   message: string
 ): Promise<void> {
-  const clone = prepareCloneForExport(element);
-  await waitForCharts();
+  const pdf = await buildPdfFromElement(element);
+  const blob = pdf.output("blob");
+  const file = new File([blob], filename, { type: "application/pdf" });
 
-  try {
-    const canvas = await html2canvas(clone, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: "#ffffff",
-      height: clone.scrollHeight,
+  if (navigator.share && navigator.canShare?.({ files: [file] })) {
+    await navigator.share({
+      files: [file],
+      title: "Proposta HUG BRASIL",
+      text: message,
     });
-
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    const imgWidthMm = A4_WIDTH_MM - MARGIN_MM * 2;
-    sliceCanvasToPages(canvas, pdf, imgWidthMm);
-    const blob = pdf.output("blob");
-    const file = new File([blob], filename, { type: "application/pdf" });
-
-    if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({
-        files: [file],
-        title: "Proposta HUG BRASIL",
-        text: message,
-      });
-      return;
-    }
-
-    pdf.save(filename);
-    const text = encodeURIComponent(message);
-    window.open(`https://wa.me/?text=${text}`, "_blank");
-  } finally {
-    document.body.removeChild(clone);
+    return;
   }
+
+  pdf.save(filename);
+  const text = encodeURIComponent(message);
+  window.open(`https://wa.me/?text=${text}`, "_blank");
 }
 
 export async function sendProposalEmail(
@@ -148,22 +192,8 @@ export async function sendProposalEmail(
   filename: string,
   data: { cliente: string; email: string; assunto: string }
 ): Promise<void> {
-  const clone = prepareCloneForExport(element);
-  await waitForCharts();
-
-  try {
-    const canvas = await html2canvas(clone, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      height: clone.scrollHeight,
-    });
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    sliceCanvasToPages(canvas, pdf, A4_WIDTH_MM - MARGIN_MM * 2);
-    pdf.save(filename);
-  } finally {
-    document.body.removeChild(clone);
-  }
+  const pdf = await buildPdfFromElement(element);
+  pdf.save(filename);
 
   const body = encodeURIComponent(
     `Olá ${data.cliente},\n\nSegue em anexo a proposta comercial HUG BRASIL Energia Solar.\n\nAtenciosamente,\nHUG BRASIL`
