@@ -1,5 +1,6 @@
 import type { KitSistema, PropostaSolar } from "@/types/proposal";
 import { DEFAULT_LOGO } from "@/lib/constants";
+import { calcularValidadeProposta } from "@/lib/defaultProposal";
 
 const MESES = [
   "Jan",
@@ -18,17 +19,44 @@ const MESES = [
 
 const FATORES_SAZONAIS = [1.12, 1.1, 1.05, 0.95, 0.88, 0.82, 0.83, 0.9, 0.98, 1.05, 1.1, 1.12];
 
+/** Sazonalidade típica de consumo residencial/comercial no Brasil (pico no verão). */
+const FATORES_CONSUMO_BR = [1.14, 1.12, 1.08, 1.0, 0.9, 0.86, 0.88, 0.94, 0.98, 1.02, 1.06, 1.12];
+
 export function parseBrNumber(value: string | undefined): number {
   if (!value) return 0;
   const cleaned = value.trim().replace(/[^\d,.-]/g, "");
   if (cleaned.includes(",")) {
     return parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
   }
+  // Sem vírgula: pontos seguidos de 3 dígitos são separadores de milhar (ex.: "8.190")
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+    return parseFloat(cleaned.replace(/\./g, "")) || 0;
+  }
   return parseFloat(cleaned) || 0;
 }
 
 export function formatBrNumber(value: number, decimals = 2): string {
   return value.toFixed(decimals).replace(".", ",");
+}
+
+function formatBrCurrency(value: number): string {
+  return value.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function isModoMensal(data: PropostaSolar): boolean {
+  return data.modoConsumo === "mensal" || data.usarConsumoDetalhado;
+}
+
+function mediaFatores(fatores: number[]): number {
+  return fatores.reduce((a, b) => a + b, 0) / fatores.length;
+}
+
+function distribuirConsumoSazonal(media: number): number[] {
+  const mediaFat = mediaFatores(FATORES_CONSUMO_BR);
+  return FATORES_CONSUMO_BR.map((f) => media * (f / mediaFat));
 }
 
 export interface GeracaoMensalPoint {
@@ -54,6 +82,8 @@ export interface CalculoProposta {
   areaModulos: number;
   totalModulos: number;
   investimentoTotal: number;
+  investimentoMateriais: number;
+  investimentoServicos: number;
   irradiacaoEstimada: number;
   geracaoMensal: GeracaoMensalPoint[];
   payback: PaybackPoint[];
@@ -69,7 +99,7 @@ function formatPaybackLabel(months: number): string {
 }
 
 function getConsumoMensal(data: PropostaSolar): number {
-  if (data.usarConsumoDetalhado && data.consumoMensalDetalhado?.length === 12) {
+  if (isModoMensal(data) && data.consumoMensalDetalhado?.length === 12) {
     const valores = data.consumoMensalDetalhado.map(parseBrNumber).filter((v) => v > 0);
     if (valores.length > 0) {
       return valores.reduce((a, b) => a + b, 0) / valores.length;
@@ -79,10 +109,13 @@ function getConsumoMensal(data: PropostaSolar): number {
 }
 
 function getConsumoPorMes(data: PropostaSolar, media: number): number[] {
-  if (data.usarConsumoDetalhado && data.consumoMensalDetalhado?.length === 12) {
+  if (isModoMensal(data) && data.consumoMensalDetalhado?.length === 12) {
     return data.consumoMensalDetalhado.map((v) => parseBrNumber(v) || media);
   }
-  return Array(12).fill(media);
+  if (media > 0) {
+    return distribuirConsumoSazonal(media);
+  }
+  return Array(12).fill(0);
 }
 
 export function calcularKwpFromPlacas(qty: number, watts: number): number {
@@ -142,8 +175,9 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
   const consumoMensal = getConsumoMensal(data);
   const consumoPorMes = getConsumoPorMes(data, consumoMensal);
   const valorKwh = parseBrNumber(data.valorKwh) || 0.65;
-  const investimentoManual = parseBrNumber(data.investimentoTotal);
-  const investimento = investimentoManual;
+  const custoRefKwp = parseBrNumber(data.custoReferenciaKwp) || 4.5;
+  const pctMateriais = parseBrNumber(data.percentualMateriais) || 70;
+  const pctServicos = parseBrNumber(data.percentualServicos) || 30;
   const aumentoAnual = parseBrNumber(data.aumentoAnualEnergia) || 5;
   const perdaAnual = parseBrNumber(data.perdaPotenciaAnual) || 0.8;
   const perdasSistema = parseBrNumber(data.perdasSistema) || 20;
@@ -154,6 +188,13 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
   const reducao = parseBrNumber(data.reducaoConta) || 100;
 
   const totalKwp = data.kits.reduce((sum, k) => sum + parseBrNumber(k.potenciaKwp), 0);
+
+  let investimento = totalKwp > 0 ? totalKwp * 1000 * custoRefKwp : 0;
+
+  const investimentoMateriais =
+    investimento > 0 ? investimento * (pctMateriais / 100) : 0;
+  const investimentoServicos =
+    investimento > 0 ? investimento * (pctServicos / 100) : 0;
 
   let geracaoMensalMedia = data.kits.reduce(
     (sum, k) => sum + parseBrNumber(k.geracaoMediaMensal),
@@ -259,6 +300,8 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
     areaModulos: 0,
     totalModulos,
     investimentoTotal: investimento,
+    investimentoMateriais,
+    investimentoServicos,
     irradiacaoEstimada,
     geracaoMensal,
     payback,
@@ -267,29 +310,40 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
 
 export function aplicarCalculos(data: PropostaSolar): PropostaSolar {
   const calc = calcularProposta(data);
+  const modoMensal = isModoMensal(data);
 
   return {
     ...data,
+    modoConsumo: data.modoConsumo ?? (modoMensal ? "mensal" : "media"),
+    usarConsumoDetalhado: modoMensal,
     logoUrl: data.logoUrl || DEFAULT_LOGO,
+    validadeProposta: data.dataProposta
+      ? calcularValidadeProposta(data.dataProposta)
+      : data.validadeProposta,
     consumoMedio12Meses:
-      calc.geracaoMensalMedia > 0 && !data.consumoMedio12Meses && data.usarConsumoDetalhado
-        ? formatBrNumber(
-            data.consumoMensalDetalhado.reduce((s, v) => s + parseBrNumber(v), 0) / 12,
-            0
-          )
-        : data.consumoMedio12Meses ||
-          (getConsumoMensal(data) > 0
-            ? formatBrNumber(getConsumoMensal(data), 0)
-            : data.consumoMedio12Meses),
+      modoMensal && data.consumoMensalDetalhado?.some((v) => parseBrNumber(v) > 0)
+        ? formatBrNumber(getConsumoMensal(data), 0)
+        : data.consumoMedio12Meses,
     geracaoAnual: calc.geracaoAnual
-      ? formatBrNumber(calc.geracaoAnual)
+      ? formatBrNumber(calc.geracaoAnual, 0)
       : data.geracaoAnual,
     percentualCobertura: calc.percentualCobertura
       ? formatBrNumber(calc.percentualCobertura, 0)
       : data.percentualCobertura,
     payback: calc.paybackLabel !== "—" ? calc.paybackLabel : data.payback,
     custoPorWp: calc.custoPorWp ? formatBrNumber(calc.custoPorWp) : data.custoPorWp,
-    investimentoTotal: data.investimentoTotal,
+    investimentoTotal:
+      calc.investimentoTotal > 0
+        ? formatBrCurrency(calc.investimentoTotal)
+        : data.investimentoTotal,
+    investimentoMateriais:
+      calc.investimentoMateriais > 0
+        ? formatBrCurrency(calc.investimentoMateriais)
+        : data.investimentoMateriais,
+    investimentoServicos:
+      calc.investimentoServicos > 0
+        ? formatBrCurrency(calc.investimentoServicos)
+        : data.investimentoServicos,
     irradiacaoLocal:
       calc.irradiacaoEstimada > 0 && !data.irradiacaoLocal
         ? formatBrNumber(calc.irradiacaoEstimada, 1)

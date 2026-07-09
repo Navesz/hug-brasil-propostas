@@ -1,9 +1,21 @@
 import type { KitSistema, PropostaSolar } from "@/types/proposal";
 import { DEFAULT_LOGO } from "@/lib/constants";
+import { gerarProximoNumeroOrcamento } from "@/lib/storage";
 
-export function createEmptyKit(titulo = "Kit Fotovoltaico Principal"): KitSistema {
+/** IDs estáveis para o estado inicial (SSR + hidratação). */
+export const DEFAULT_PROPOSAL_ID = "proposta-padrao";
+export const DEFAULT_KIT_ID = "kit-principal";
+
+export function createNewId(): string {
+  return crypto.randomUUID();
+}
+
+export function createEmptyKit(
+  titulo = "Kit Fotovoltaico Principal",
+  id?: string
+): KitSistema {
   return {
-    id: crypto.randomUUID(),
+    id: id ?? createNewId(),
     titulo,
     descricao: "",
     potenciaKwp: "",
@@ -39,18 +51,37 @@ function addDays(date: Date, days: number): Date {
   return result;
 }
 
+export function calcularValidadeProposta(dataPropostaStr: string): string {
+  const parts = dataPropostaStr.split("/");
+  if (parts.length === 3) {
+    const [d, m, y] = parts.map(Number);
+    const base = new Date(y, m - 1, d);
+    if (!Number.isNaN(base.getTime())) {
+      return formatDateBR(addDays(base, 7));
+    }
+  }
+  return formatDateBR(addDays(new Date(), 7));
+}
+
 export function createEmptyConsumoMensal(): string[] {
   return Array(12).fill("");
 }
 
-export function createDefaultProposal(): PropostaSolar {
+export function createDefaultProposal(novoOrcamento = false): PropostaSolar {
   const hoje = new Date();
+  const dataProposta = formatDateBR(hoje);
+  const gerarIdsNovos = novoOrcamento && typeof window !== "undefined";
+  const numeroOrcamento =
+    novoOrcamento && typeof window !== "undefined"
+      ? gerarProximoNumeroOrcamento()
+      : "";
+
   return {
-    id: crypto.randomUUID(),
+    id: gerarIdsNovos ? createNewId() : DEFAULT_PROPOSAL_ID,
     logoUrl: DEFAULT_LOGO,
-    numeroOrcamento: "",
-    dataProposta: formatDateBR(hoje),
-    validadeProposta: formatDateBR(addDays(hoje, 30)),
+    numeroOrcamento,
+    dataProposta,
+    validadeProposta: calcularValidadeProposta(dataProposta),
 
     nomeCliente: "",
     unidades: "",
@@ -63,6 +94,7 @@ export function createDefaultProposal(): PropostaSolar {
     concessionaria: "",
     consumoMedio12Meses: "",
     consumoMensalDetalhado: createEmptyConsumoMensal(),
+    modoConsumo: "media",
     usarConsumoDetalhado: false,
     reducaoConta: "",
     valorKwh: "0,65",
@@ -73,7 +105,12 @@ export function createDefaultProposal(): PropostaSolar {
     considerarTusdG: false,
     irradiacaoLocal: "",
 
-    kits: [createEmptyKit()],
+    kits: [
+      createEmptyKit(
+        "Kit Fotovoltaico Principal",
+        gerarIdsNovos ? createNewId() : DEFAULT_KIT_ID
+      ),
+    ],
 
     geracaoAnual: "",
     percentualCobertura: "",
@@ -81,6 +118,9 @@ export function createDefaultProposal(): PropostaSolar {
     investimentoTotal: "",
     investimentoMateriais: "",
     investimentoServicos: "",
+    percentualMateriais: "70",
+    percentualServicos: "30",
+    custoReferenciaKwp: "4,50",
     custoPorWp: "",
     payback: "",
     aumentoAnualEnergia: "5",
@@ -116,5 +156,18 @@ export function createDefaultProposal(): PropostaSolar {
     empresaSite: "www.hugbrasil.com",
     representanteNome: "THIAGO CUPERTINO C FELIPE INSTALADORA",
     representanteCnpj: "31.477.529/0001-24",
+  };
+}
+
+export function normalizarProposta(data: Partial<PropostaSolar>): Partial<PropostaSolar> {
+  const modoConsumo =
+    data.modoConsumo ?? (data.usarConsumoDetalhado ? "mensal" : "media");
+  return {
+    ...data,
+    modoConsumo,
+    usarConsumoDetalhado: modoConsumo === "mensal",
+    percentualMateriais: data.percentualMateriais ?? "70",
+    percentualServicos: data.percentualServicos ?? "30",
+    custoReferenciaKwp: data.custoReferenciaKwp ?? "4,50",
   };
 }

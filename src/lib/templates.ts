@@ -1,5 +1,6 @@
 import type { PropostaSolar } from "@/types/proposal";
-import { createDefaultProposal, createEmptyKit } from "./defaultProposal";
+import { createDefaultProposal, createEmptyKit, calcularValidadeProposta } from "./defaultProposal";
+import { gerarProximoNumeroOrcamento } from "./storage";
 
 export interface TemplateProposta {
   id: string;
@@ -142,15 +143,15 @@ export function aplicarTemplate(templateId: string): PropostaSolar {
 }
 
 export function duplicarProposta(data: PropostaSolar): PropostaSolar {
+  const dataProposta = new Date().toLocaleDateString("pt-BR");
   return {
     ...data,
     id: crypto.randomUUID(),
-    numeroOrcamento: "",
+    numeroOrcamento:
+      typeof window !== "undefined" ? gerarProximoNumeroOrcamento() : "",
     nomeCliente: data.nomeCliente ? `${data.nomeCliente} (cópia)` : "",
-    dataProposta: new Date().toLocaleDateString("pt-BR"),
-    validadeProposta: new Date(
-      Date.now() + 30 * 24 * 60 * 60 * 1000
-    ).toLocaleDateString("pt-BR"),
+    dataProposta,
+    validadeProposta: calcularValidadeProposta(dataProposta),
     kits: data.kits.map((k) => ({ ...k, id: crypto.randomUUID() })),
   };
 }

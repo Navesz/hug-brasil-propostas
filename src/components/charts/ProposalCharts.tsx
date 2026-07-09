@@ -20,6 +20,9 @@ import type { GeracaoMensalPoint, PaybackPoint } from "@/lib/calculations";
 const BLUE = "#0066b3";
 const GREEN = "#2ecc71";
 const GRAY = "#94a3b8";
+const CHART_FONT =
+  'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+const TICK_STYLE = { fontSize: 11, fill: "#64748b", fontFamily: CHART_FONT };
 
 interface GeracaoMensalChartProps {
   data: GeracaoMensalPoint[];
@@ -38,15 +41,15 @@ export function GeracaoMensalChart({ data }: GeracaoMensalChartProps) {
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="mes" tick={{ fontSize: 11, fill: "#64748b" }} />
+          <CartesianGrid stroke="#eef2f7" vertical={false} />
+          <XAxis dataKey="mes" tick={TICK_STYLE} />
           <YAxis
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={TICK_STYLE}
             label={{
               value: "kWh",
               angle: -90,
               position: "insideLeft",
-              style: { fontSize: 10, fill: "#94a3b8" },
+              style: { fontSize: 10, fill: "#94a3b8", fontFamily: CHART_FONT },
             }}
           />
           <Tooltip
@@ -62,7 +65,7 @@ export function GeracaoMensalChart({ data }: GeracaoMensalChartProps) {
           />
           <Legend
             formatter={(value) => (value === "geracao" ? "Geração Solar" : "Consumo")}
-            wrapperStyle={{ fontSize: 12 }}
+            wrapperStyle={{ fontSize: 12, fontFamily: CHART_FONT }}
           />
           <Bar dataKey="geracao" fill={GREEN} radius={[4, 4, 0, 0]} name="geracao" />
           <Line
@@ -100,11 +103,11 @@ export function PaybackChart({ data, paybackLabel }: PaybackChartProps) {
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-          <XAxis dataKey="periodo" tick={{ fontSize: 11, fill: "#64748b" }} />
+        <LineChart data={data} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke="#eef2f7" vertical={false} />
+          <XAxis dataKey="periodo" tick={TICK_STYLE} />
           <YAxis
-            tick={{ fontSize: 11, fill: "#64748b" }}
+            tick={TICK_STYLE}
             tickFormatter={(v) =>
               v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : `R$${v}`
             }
@@ -122,7 +125,7 @@ export function PaybackChart({ data, paybackLabel }: PaybackChartProps) {
               fontSize: 12,
             }}
           />
-          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Legend wrapperStyle={{ fontSize: 12, fontFamily: CHART_FONT }} />
           {paybackAno >= 0 && (
             <ReferenceLine
               x={data[paybackAno].periodo}
@@ -133,6 +136,8 @@ export function PaybackChart({ data, paybackLabel }: PaybackChartProps) {
                 position: "top",
                 fill: GREEN,
                 fontSize: 11,
+                fontWeight: 600,
+                fontFamily: CHART_FONT,
               }}
             />
           )}
@@ -178,9 +183,14 @@ export function EconomiaAnualChart({
   return (
     <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ left: 20, right: 20 }}>
-          <XAxis type="number" tick={{ fontSize: 11 }} />
-          <YAxis type="category" dataKey="nome" tick={{ fontSize: 11 }} width={100} />
+        <BarChart data={data} layout="vertical" margin={{ left: 8, right: 20 }}>
+          <XAxis type="number" tick={TICK_STYLE} />
+          <YAxis
+            type="category"
+            dataKey="nome"
+            tick={TICK_STYLE}
+            width={112}
+          />
           <Tooltip
             formatter={(v) => [`${Number(v ?? 0).toLocaleString("pt-BR")} kWh`, ""]}
             contentStyle={{ borderRadius: 12, fontSize: 12 }}

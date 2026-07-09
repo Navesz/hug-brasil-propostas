@@ -21,6 +21,8 @@ export function CalculadoraAvancada({ data, onChange }: CalculadoraAvancadaProps
     set("consumoMensalDetalhado", next);
   };
 
+  const modoMensal = data.modoConsumo === "mensal";
+
   return (
     <div className="mt-5 rounded-xl border border-hug-blue/20 bg-hug-blue/5 p-5">
       <h4 className="mb-3 flex items-center gap-2 font-semibold text-hug-blue">
@@ -94,14 +96,12 @@ export function CalculadoraAvancada({ data, onChange }: CalculadoraAvancadaProps
         onChange={(v) => set("considerarTusdG", v)}
       />
 
-      <div className="mt-4">
-        <Checkbox
-          label="Usar consumo mensal detalhado (12 meses)"
-          checked={data.usarConsumoDetalhado}
-          onChange={(v) => set("usarConsumoDetalhado", v)}
-        />
-        {data.usarConsumoDetalhado && (
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      {modoMensal && (
+        <div className="mt-4">
+          <p className="mb-2 text-sm font-medium text-slate-700">
+            Consumo mês a mês (kWh)
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
             {MESES_COMPLETOS.map((mes, i) => (
               <Field
                 key={mes}
@@ -112,8 +112,8 @@ export function CalculadoraAvancada({ data, onChange }: CalculadoraAvancadaProps
               />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

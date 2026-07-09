@@ -5,8 +5,6 @@ import {
   Copy,
   FolderOpen,
   LayoutTemplate,
-  Mail,
-  MessageCircle,
   Plus,
   Save,
   Trash2,
@@ -25,8 +23,6 @@ interface ProposalToolbarProps {
   onLoad: (data: PropostaSolar) => void;
   onNew: () => void;
   onDuplicate: () => void;
-  onShareWhatsApp: () => void;
-  onShareEmail: () => void;
   lastSaved?: string;
 }
 
@@ -35,8 +31,6 @@ export function ProposalToolbar({
   onLoad,
   onNew,
   onDuplicate,
-  onShareWhatsApp,
-  onShareEmail,
   lastSaved,
 }: ProposalToolbarProps) {
   const [showHistory, setShowHistory] = useState(false);
@@ -45,10 +39,14 @@ export function ProposalToolbar({
 
   const refreshHistory = () => setHistory(listarPropostas());
 
-  const handleSave = () => {
-    const saved = salvarProposta(data);
-    onLoad(saved.data);
-    refreshHistory();
+  const handleSave = async () => {
+    try {
+      const saved = await salvarProposta(data);
+      onLoad(saved.data);
+      refreshHistory();
+    } catch {
+      alert("Erro ao salvar proposta. Tente novamente.");
+    }
   };
 
   return (
@@ -105,26 +103,6 @@ export function ProposalToolbar({
         Duplicar
       </button>
 
-      <div className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
-
-      <button
-        type="button"
-        onClick={onShareWhatsApp}
-        className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
-      >
-        <MessageCircle className="h-4 w-4" />
-        WhatsApp
-      </button>
-
-      <button
-        type="button"
-        onClick={onShareEmail}
-        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-      >
-        <Mail className="h-4 w-4" />
-        E-mail
-      </button>
-
       {lastSaved && (
         <span className="ml-auto text-xs text-slate-400">
           Rascunho salvo {lastSaved}
@@ -147,8 +125,8 @@ export function ProposalToolbar({
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      const loaded = carregarProposta(item.id);
+                    onClick={async () => {
+                      const loaded = await carregarProposta(item.id);
                       if (loaded) onLoad(loaded);
                       setShowHistory(false);
                     }}

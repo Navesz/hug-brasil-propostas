@@ -1,25 +1,17 @@
 "use client";
 
 import { useRef } from "react";
-import {
-  Cpu,
-  FileDown,
-  ImagePlus,
-  Plus,
-  Trash2,
-  Zap,
-} from "lucide-react";
+import { Cpu, ImagePlus, Plus, Trash2, Zap } from "lucide-react";
 import { CalculadoraAvancada } from "@/components/CalculadoraAvancada";
 import type { KitSistema, PropostaSolar, TipoSistema } from "@/types/proposal";
 import { createEmptyKit } from "@/lib/defaultProposal";
-import { Field, ReadOnlyField, SectionCard, Select, TextArea, Checkbox } from "./ui/FormFields";
+import { Field, ReadOnlyField, SectionCard, Select, TextArea } from "./ui/FormFields";
 import { parseBrNumber } from "@/lib/calculations";
+import { compressImageFile } from "@/lib/imageUtils";
 
 interface ProposalFormProps {
   data: PropostaSolar;
   onChange: (data: PropostaSolar) => void;
-  onExportPdf: (ocultarValores?: boolean) => void;
-  exporting: boolean;
 }
 
 function updateKit(
@@ -31,24 +23,23 @@ function updateKit(
   return kits.map((k) => (k.id === id ? { ...k, [field]: value } : k));
 }
 
-export function ProposalForm({
-  data,
-  onChange,
-  onExportPdf,
-  exporting,
-}: ProposalFormProps) {
+export function ProposalForm({ data, onChange }: ProposalFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof PropostaSolar>(key: K, value: PropostaSolar[K]) => {
     onChange({ ...data, [key]: value });
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => set("logoUrl", reader.result as string);
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageFile(file);
+      set("logoUrl", compressed);
+    } catch {
+      alert("Não foi possível processar a imagem. Tente outro arquivo.");
+    }
+    e.target.value = "";
   };
 
   const addKit = () => {
@@ -104,7 +95,7 @@ export function ProposalForm({
                 className="hidden"
               />
               <div className="text-sm text-slate-500">
-                <p>Clique para enviar a logo da HUG BRASIL</p>
+                <p>Clique para enviar a logo da empresa</p>
                 <p className="text-xs">PNG, JPG ou SVG recomendado</p>
                 {data.logoUrl && (
                   <button
@@ -127,11 +118,10 @@ export function ProposalForm({
               placeholder="Ex: Dr. Antonio Capella"
               required
             />
-            <Field
+            <ReadOnlyField
               label="Nº do Orçamento"
               value={data.numeroOrcamento}
-              onChange={(v) => set("numeroOrcamento", v)}
-              placeholder="Ex: 321343"
+              hint="Gerado automaticamente (0001, 0002…)"
             />
           </div>
 
@@ -148,10 +138,10 @@ export function ProposalForm({
               value={data.dataProposta}
               onChange={(v) => set("dataProposta", v)}
             />
-            <Field
+            <ReadOnlyField
               label="Validade da Proposta"
               value={data.validadeProposta}
-              onChange={(v) => set("validadeProposta", v)}
+              hint="Calculada automaticamente (+7 dias)"
             />
           </div>
         </div>
@@ -213,13 +203,47 @@ export function ProposalForm({
           />
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field
-            label="Consumo Médio (12 meses) kWh"
-            value={data.consumoMedio12Meses}
-            onChange={(v) => set("consumoMedio12Meses", v)}
-            placeholder="Ex: 500"
-          />
+        <div className="mb-4">
+          <p className="mb-2 text-sm font-medium text-slate-700">Forma de entrada do consumo</p>
+          <div className="flex flex-wrap gap-3">
+            {(
+              [
+                { value: "media", label: "Média mensal anual", desc: "Uma média + variação sazonal no gráfico" },
+                { value: "mensal", label: "Mês a mês manual", desc: "Informar cada mês separadamente" },
+              ] as const
+            ).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    ...data,
+                    modoConsumo: opt.value,
+                    usarConsumoDetalhado: opt.value === "mensal",
+                  })
+                }
+                className={`rounded-xl border-2 px-4 py-3 text-left transition ${
+                  data.modoConsumo === opt.value
+                    ? "border-hug-blue bg-hug-blue/10"
+                    : "border-slate-200 hover:border-hug-blue/40"
+                }`}
+              >
+                <span className="text-sm font-semibold text-slate-800">{opt.label}</span>
+                <p className="mt-0.5 text-xs text-slate-500">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {data.modoConsumo !== "mensal" && (
+            <Field
+              label="Consumo Médio (12 meses) kWh"
+              value={data.consumoMedio12Meses}
+              onChange={(v) => set("consumoMedio12Meses", v)}
+              placeholder="Ex: 500"
+            />
+          )}
           <Field
             label="Redução da Conta (%)"
             value={data.reducaoConta}
@@ -520,42 +544,54 @@ export function ProposalForm({
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
+            label="Custo Referência (R$/kWp)"
+            value={data.custoReferenciaKwp}
+            onChange={(v) => set("custoReferenciaKwp", v)}
+            placeholder="Ex: 4,50"
+            hint="Base para calcular investimento total"
+          />
+          <Field
+            label="% Materiais"
+            value={data.percentualMateriais}
+            onChange={(v) => set("percentualMateriais", v)}
+            placeholder="70"
+          />
+          <Field
+            label="% Serviços de Instalação"
+            value={data.percentualServicos}
+            onChange={(v) => set("percentualServicos", v)}
+            placeholder="30"
+          />
+          <ReadOnlyField
             label="Investimento Total (R$)"
             value={data.investimentoTotal}
-            onChange={(v) => set("investimentoTotal", v)}
-            placeholder="Ex: 157.800,00"
+            hint="kWp × custo referência"
           />
-          <Field
+          <ReadOnlyField
             label="Materiais (R$)"
             value={data.investimentoMateriais}
-            onChange={(v) => set("investimentoMateriais", v)}
+            hint={`${data.percentualMateriais || "70"}% do total`}
           />
-          <Field
+          <ReadOnlyField
             label="Serviços de Instalação (R$)"
             value={data.investimentoServicos}
-            onChange={(v) => set("investimentoServicos", v)}
+            hint={`${data.percentualServicos || "30"}% do total`}
           />
-          <Field
+          <ReadOnlyField
             label="Custo por Wp (R$)"
             value={data.custoPorWp}
-            onChange={(v) => set("custoPorWp", v)}
-            placeholder="Ex: 3,51"
           />
-          <Field
+          <ReadOnlyField
             label="Payback"
             value={data.payback}
-            onChange={(v) => set("payback", v)}
-            placeholder="Ex: 2 anos e 6 meses"
           />
-          <Field
+          <ReadOnlyField
             label="Geração Anual (kWh)"
             value={data.geracaoAnual}
-            onChange={(v) => set("geracaoAnual", v)}
           />
-          <Field
+          <ReadOnlyField
             label="Cobertura do Consumo (%)"
             value={data.percentualCobertura}
-            onChange={(v) => set("percentualCobertura", v)}
           />
           <Field
             label="Aumento Anual Energia (%)"
@@ -635,13 +671,6 @@ export function ProposalForm({
           />
         </div>
 
-        <div className="mt-4">
-          <Checkbox
-            label="Ocultar valores na proposta (PDF sem preços)"
-            checked={data.ocultarValores}
-            onChange={(v) => set("ocultarValores", v)}
-          />
-        </div>
       </SectionCard>
 
       <SectionCard
@@ -691,26 +720,6 @@ export function ProposalForm({
         </div>
       </SectionCard>
 
-      <div className="sticky bottom-4 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={() => onExportPdf(false)}
-          disabled={exporting}
-          className="flex flex-1 items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-hug-blue to-hug-green px-8 py-4 text-lg font-semibold text-white shadow-lg shadow-hug-blue/25 transition hover:shadow-xl hover:brightness-105 disabled:opacity-60"
-        >
-          <FileDown className="h-6 w-6" />
-          {exporting ? "Gerando PDF..." : "PDF com Valores"}
-        </button>
-        <button
-          type="button"
-          onClick={() => onExportPdf(true)}
-          disabled={exporting}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border-2 border-hug-blue px-6 py-4 text-base font-semibold text-hug-blue transition hover:bg-hug-blue/5 disabled:opacity-60"
-        >
-          <FileDown className="h-5 w-5" />
-          PDF sem Valores
-        </button>
-      </div>
     </div>
   );
 }

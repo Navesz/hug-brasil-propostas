@@ -28,6 +28,8 @@ export interface KitSistema {
   investimento: string;
 }
 
+export type ModoConsumo = "media" | "mensal";
+
 export interface PropostaSolar {
   id: string;
   logoUrl: string;
@@ -46,6 +48,8 @@ export interface PropostaSolar {
   concessionaria: string;
   consumoMedio12Meses: string;
   consumoMensalDetalhado: string[];
+  modoConsumo: ModoConsumo;
+  /** @deprecated use modoConsumo */
   usarConsumoDetalhado: boolean;
   reducaoConta: string;
   valorKwh: string;
@@ -64,6 +68,9 @@ export interface PropostaSolar {
   investimentoTotal: string;
   investimentoMateriais: string;
   investimentoServicos: string;
+  percentualMateriais: string;
+  percentualServicos: string;
+  custoReferenciaKwp: string;
   custoPorWp: string;
   payback: string;
   aumentoAnualEnergia: string;

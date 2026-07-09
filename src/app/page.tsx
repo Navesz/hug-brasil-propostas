@@ -1,18 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, FileText, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Eye, FileText, Loader2, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ProposalForm } from "@/components/ProposalForm";
 import { ProposalPreview } from "@/components/ProposalPreview";
 import { ProposalToolbar } from "@/components/ProposalToolbar";
-import { createDefaultProposal } from "@/lib/defaultProposal";
+import { createDefaultProposal, normalizarProposta } from "@/lib/defaultProposal";
 import { aplicarCalculos } from "@/lib/calculations";
+import { generatePdfFromElement } from "@/lib/generatePdf";
 import {
-  generatePdfFromElement,
-  sendProposalEmail,
-  sharePdfWhatsApp,
-} from "@/lib/generatePdf";
-import { carregarRascunho, salvarRascunho } from "@/lib/storage";
+  carregarRascunho,
+  salvarRascunho,
+  gerarProximoNumeroOrcamento,
+  inicializarSequenciaOrcamentos,
+} from "@/lib/storage";
 import { duplicarProposta } from "@/lib/templates";
 import { validarPropostaParaPdf } from "@/lib/validation";
 import type { PropostaSolar } from "@/types/proposal";
@@ -21,9 +22,9 @@ function mergeWithDefaults(data: Partial<PropostaSolar>): PropostaSolar {
   const base = createDefaultProposal();
   return aplicarCalculos({
     ...base,
-    ...data,
+    ...normalizarProposta(data),
     kits: data.kits?.length
-      ? data.kits.map((k) => ({ ...base.kits[0], ...k, id: k.id || crypto.randomUUID() }))
+      ? data.kits.map((k, i) => ({ ...base.kits[0], ...k, id: k.id || `kit-${i}` }))
       : base.kits,
     consumoMensalDetalhado:
       data.consumoMensalDetalhado?.length === 12
@@ -42,7 +43,6 @@ export default function HomePage() {
   const [showPreview, setShowPreview] = useState(true);
   const [activeTab, setActiveTab] = useState<"form" | "preview">("form");
   const [lastSaved, setLastSaved] = useState<string>("");
-  const [hideValuesExport, setHideValuesExport] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
   const calcTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,9 +52,16 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const draft = carregarRascunho();
-    if (draft) setData(aplicarCalculos(mergeWithDefaults(draft)));
-    setHydrated(true);
+    inicializarSequenciaOrcamentos();
+    void (async () => {
+      const draft = await carregarRascunho();
+      let merged = draft ? mergeWithDefaults(draft) : createDefaultProposal(true);
+      if (!merged.numeroOrcamento) {
+        merged = { ...merged, numeroOrcamento: gerarProximoNumeroOrcamento() };
+      }
+      setData(aplicarCalculos(merged));
+      setHydrated(true);
+    })();
   }, []);
 
   useEffect(() => {
@@ -73,10 +80,13 @@ export default function HomePage() {
     hydrated,
     data.consumoMedio12Meses,
     data.consumoMensalDetalhado,
+    data.modoConsumo,
     data.usarConsumoDetalhado,
+    data.dataProposta,
+    data.percentualMateriais,
+    data.percentualServicos,
+    data.custoReferenciaKwp,
     data.investimentoTotal,
-    data.investimentoMateriais,
-    data.investimentoServicos,
     data.valorKwh,
     data.perdasSistema,
     data.fatorGeracaoKwp,
@@ -95,8 +105,14 @@ export default function HomePage() {
     if (!hydrated) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      salvarRascunho(data);
-      setLastSaved(new Date().toLocaleTimeString("pt-BR"));
+      void salvarRascunho(data).then((result) => {
+        if (result.ok) {
+          setLastSaved(new Date().toLocaleTimeString("pt-BR"));
+        }
+        if (result.warning) {
+          console.warn(result.warning);
+        }
+      });
     }, 1500);
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
@@ -111,68 +127,35 @@ export default function HomePage() {
     return `HUG_BRASIL_${clientName}_${orcNum}.pdf`;
   }, [data.nomeCliente, data.numeroOrcamento]);
 
-  const handleExportPdf = useCallback(
-    async (semValores = false) => {
-      const { valid, errors, warnings } = validarPropostaParaPdf({
-        ...data,
-        ocultarValores: semValores || data.ocultarValores,
-      });
+  const handleExportPdf = useCallback(async () => {
+    const { valid, errors, warnings } = validarPropostaParaPdf(data);
 
-      if (!valid) {
-        alert(
-          "Corrija os campos obrigatórios:\n\n" +
-            errors.map((e) => `• ${e.message}`).join("\n")
-        );
-        return;
-      }
-
-      if (warnings.length > 0) {
-        const proceed = confirm(
-          "Avisos:\n" +
-            warnings.map((w) => `• ${w.message}`).join("\n") +
-            "\n\nDeseja gerar o PDF mesmo assim?"
-        );
-        if (!proceed) return;
-      }
-
-      if (!previewRef.current) return;
-      setExporting(true);
-      setHideValuesExport(semValores);
-      await new Promise((r) => setTimeout(r, 100));
-
-      try {
-        await generatePdfFromElement(previewRef.current, getFilename());
-      } catch (err) {
-        console.error(err);
-        alert("Erro ao gerar PDF. Tente novamente.");
-      } finally {
-        setHideValuesExport(false);
-        setExporting(false);
-      }
-    },
-    [data, getFilename]
-  );
-
-  const handleShareWhatsApp = useCallback(async () => {
-    if (!previewRef.current) return;
-    setExporting(true);
-    try {
-      const msg = `Olá ${data.nomeCliente || ""}! Segue a proposta comercial HUG BRASIL Energia Solar — Orçamento ${data.numeroOrcamento || ""}. Potência: ${data.kits.map((k) => k.potenciaKwp).join(", ")} kWp. Validade: ${data.validadeProposta}.`;
-      await sharePdfWhatsApp(previewRef.current, getFilename(), msg);
-    } finally {
-      setExporting(false);
+    if (!valid) {
+      alert(
+        "Corrija os campos obrigatórios:\n\n" +
+          errors.map((e) => `• ${e.message}`).join("\n")
+      );
+      return;
     }
-  }, [data, getFilename]);
 
-  const handleShareEmail = useCallback(async () => {
+    if (warnings.length > 0) {
+      const proceed = confirm(
+        "Avisos:\n" +
+          warnings.map((w) => `• ${w.message}`).join("\n") +
+          "\n\nDeseja gerar o PDF mesmo assim?"
+      );
+      if (!proceed) return;
+    }
+
     if (!previewRef.current) return;
     setExporting(true);
+    await new Promise((r) => setTimeout(r, 100));
+
     try {
-      await sendProposalEmail(previewRef.current, getFilename(), {
-        cliente: data.nomeCliente,
-        email: "",
-        assunto: `Proposta HUG BRASIL — ${data.nomeCliente} — Orç. ${data.numeroOrcamento}`,
-      });
+      await generatePdfFromElement(previewRef.current, getFilename());
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao gerar PDF. Tente novamente.");
     } finally {
       setExporting(false);
     }
@@ -240,10 +223,8 @@ export default function HomePage() {
         <ProposalToolbar
           data={data}
           onLoad={(d) => setData(aplicarCalculos(mergeWithDefaults(d)))}
-          onNew={() => setData(aplicarCalculos(createDefaultProposal()))}
+          onNew={() => setData(aplicarCalculos(createDefaultProposal(true)))}
           onDuplicate={() => setData(aplicarCalculos(duplicarProposta(data)))}
-          onShareWhatsApp={handleShareWhatsApp}
-          onShareEmail={handleShareEmail}
           lastSaved={lastSaved}
         />
 
@@ -253,12 +234,7 @@ export default function HomePage() {
               !showPreview ? "max-w-3xl mx-auto w-full" : ""
             }`}
           >
-            <ProposalForm
-              data={data}
-              onChange={updateData}
-              onExportPdf={handleExportPdf}
-              exporting={exporting}
-            />
+            <ProposalForm data={data} onChange={updateData} />
           </div>
 
           {showPreview && (
@@ -269,34 +245,21 @@ export default function HomePage() {
                     <Eye className="h-4 w-4 text-hug-blue" />
                     Pré-visualização
                   </h2>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleExportPdf(false)}
-                      disabled={exporting}
-                      className="rounded-lg bg-hug-green px-3 py-2 text-xs font-semibold text-white sm:text-sm"
-                    >
-                      PDF c/ Valores
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExportPdf(true)}
-                      disabled={exporting}
-                      className="rounded-lg border border-hug-blue px-3 py-2 text-xs font-semibold text-hug-blue sm:text-sm"
-                    >
-                      PDF s/ Valores
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleExportPdf}
+                    disabled={exporting}
+                    className="flex items-center gap-2 rounded-lg bg-hug-green px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-60 sm:text-sm"
+                  >
+                    {exporting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {exporting ? "Gerando PDF..." : "Gerar PDF"}
+                  </button>
                 </div>
                 <div
                   id="preview-scroll-container"
                   className="max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-200/50 p-4"
                 >
-                  <ProposalPreview
-                    ref={previewRef}
-                    data={data}
-                    hideValues={hideValuesExport || data.ocultarValores}
-                  />
+                  <ProposalPreview ref={previewRef} data={data} />
                 </div>
               </div>
             </div>

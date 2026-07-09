@@ -31,6 +31,19 @@ body {
   -webkit-print-color-adjust: exact;
 }
 
+.pdf-page {
+  box-sizing: border-box;
+  break-inside: avoid;
+  page-break-after: always;
+}
+
+@media print {
+  .pdf-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+}
+
 @media print {
   body {
     background: white;
