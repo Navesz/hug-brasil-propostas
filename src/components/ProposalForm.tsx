@@ -544,11 +544,11 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field
-            label="Custo Referência (R$/kWp)"
-            value={data.custoReferenciaKwp}
-            onChange={(v) => set("custoReferenciaKwp", v)}
-            placeholder="Ex: 4,50"
-            hint="Base para calcular investimento total"
+            label="Investimento Total (R$)"
+            value={data.investimentoTotal}
+            onChange={(v) => set("investimentoTotal", v)}
+            placeholder="Ex: 8.190,00"
+            hint="Valor total do projeto"
           />
           <Field
             label="% Materiais"
@@ -563,11 +563,6 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
             placeholder="30"
           />
           <ReadOnlyField
-            label="Investimento Total (R$)"
-            value={data.investimentoTotal}
-            hint="kWp × custo referência"
-          />
-          <ReadOnlyField
             label="Materiais (R$)"
             value={data.investimentoMateriais}
             hint={`${data.percentualMateriais || "70"}% do total`}
@@ -580,6 +575,7 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
           <ReadOnlyField
             label="Custo por Wp (R$)"
             value={data.custoPorWp}
+            hint="Investimento ÷ potência (kWp × 1000)"
           />
           <ReadOnlyField
             label="Payback"

@@ -85,7 +85,6 @@ export default function HomePage() {
     data.dataProposta,
     data.percentualMateriais,
     data.percentualServicos,
-    data.custoReferenciaKwp,
     data.investimentoTotal,
     data.valorKwh,
     data.perdasSistema,

@@ -175,7 +175,6 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
   const consumoMensal = getConsumoMensal(data);
   const consumoPorMes = getConsumoPorMes(data, consumoMensal);
   const valorKwh = parseBrNumber(data.valorKwh) || 0.65;
-  const custoRefKwp = parseBrNumber(data.custoReferenciaKwp) || 4.5;
   const pctMateriais = parseBrNumber(data.percentualMateriais) || 70;
   const pctServicos = parseBrNumber(data.percentualServicos) || 30;
   const aumentoAnual = parseBrNumber(data.aumentoAnualEnergia) || 5;
@@ -189,7 +188,7 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
 
   const totalKwp = data.kits.reduce((sum, k) => sum + parseBrNumber(k.potenciaKwp), 0);
 
-  let investimento = totalKwp > 0 ? totalKwp * 1000 * custoRefKwp : 0;
+  const investimento = parseBrNumber(data.investimentoTotal);
 
   const investimentoMateriais =
     investimento > 0 ? investimento * (pctMateriais / 100) : 0;
@@ -332,10 +331,6 @@ export function aplicarCalculos(data: PropostaSolar): PropostaSolar {
       : data.percentualCobertura,
     payback: calc.paybackLabel !== "—" ? calc.paybackLabel : data.payback,
     custoPorWp: calc.custoPorWp ? formatBrNumber(calc.custoPorWp) : data.custoPorWp,
-    investimentoTotal:
-      calc.investimentoTotal > 0
-        ? formatBrCurrency(calc.investimentoTotal)
-        : data.investimentoTotal,
     investimentoMateriais:
       calc.investimentoMateriais > 0
         ? formatBrCurrency(calc.investimentoMateriais)
