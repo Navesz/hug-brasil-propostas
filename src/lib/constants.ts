@@ -41,4 +41,12 @@ export const MESES_COMPLETOS = [
 
 export const DEFAULT_LOGO = "/logo-hug-brasil.svg";
 
+export const DEFAULT_CROQUI_TITULO = "Croqui / Local de Instalação";
+
+/** Altura máxima do croqui na proposta. */
+export const CROQUI_MAX_HEIGHT_PX = 500;
+
+export const IRRADIACAO_DISCLAIMER =
+  "Geração estimada conforme irradiação média da região.";
+
 export const AREA_POR_PLACA_M2 = 2.3;

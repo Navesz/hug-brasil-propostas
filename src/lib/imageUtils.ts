@@ -1,24 +1,24 @@
-const DEFAULT_MAX_SIZE = 400;
-const DEFAULT_QUALITY = 0.82;
+const DEFAULT_MAX_SIZE = 800;
+const DEFAULT_JPEG_QUALITY = 0.88;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = () => reject(new Error("Falha ao carregar imagem"));
     img.src = src;
   });
 }
 
-function canvasToDataUrl(canvas: HTMLCanvasElement, quality: number): string {
-  return canvas.toDataURL("image/jpeg", quality);
+function isPngDataUrl(dataUrl: string): boolean {
+  return dataUrl.startsWith("data:image/png");
 }
 
-/** Redimensiona e comprime uma data URL de imagem. */
+/** Redimensiona e comprime uma data URL de imagem. PNG mantém transparência. */
 export async function compressImageDataUrl(
   dataUrl: string,
   maxSize = DEFAULT_MAX_SIZE,
-  quality = DEFAULT_QUALITY
+  quality = DEFAULT_JPEG_QUALITY
 ): Promise<string> {
   if (!dataUrl.startsWith("data:image/")) return dataUrl;
 
@@ -33,21 +33,37 @@ export async function compressImageDataUrl(
   const ctx = canvas.getContext("2d");
   if (!ctx) return dataUrl;
 
+  const preservePng = isPngDataUrl(dataUrl);
+  if (!preservePng) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  }
+
   ctx.drawImage(img, 0, 0, width, height);
-  return canvasToDataUrl(canvas, quality);
+
+  if (preservePng) {
+    return canvas.toDataURL("image/png");
+  }
+  return canvas.toDataURL("image/jpeg", quality);
 }
 
 /** Comprime um arquivo de imagem antes do upload. */
 export async function compressImageFile(
   file: File,
   maxSize = DEFAULT_MAX_SIZE,
-  quality = DEFAULT_QUALITY
+  quality = DEFAULT_JPEG_QUALITY
 ): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo"));
     reader.readAsDataURL(file);
   });
-  return compressImageDataUrl(dataUrl, maxSize, quality);
+
+  try {
+    return await compressImageDataUrl(dataUrl, maxSize, quality);
+  } catch {
+    // Se a compressão falhar (ex.: PNG especial), usa o arquivo original
+    return dataUrl;
+  }
 }

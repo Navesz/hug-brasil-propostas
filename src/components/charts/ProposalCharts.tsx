@@ -24,6 +24,20 @@ const CHART_FONT =
   'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 const TICK_STYLE = { fontSize: 11, fill: "#64748b", fontFamily: CHART_FONT };
 
+export const PAYBACK_DISCLAIMER =
+  "Projeção estimada com base nos dados informados. Manutenção dos equipamentos (ex.: limpeza dos módulos), variações climáticas, alterações tarifárias, sombreamento e consumo real podem alterar o prazo de retorno do investimento.";
+
+/** Eixo X: anos 1–9 individuais; a partir do ano 10, de 2 em 2. */
+function buildPaybackAxisTicks(totalAnos: number): string[] {
+  const anos: number[] = [];
+  for (let y = 1; y < 10 && y <= totalAnos; y++) anos.push(y);
+  for (let y = 10; y <= totalAnos; y += 2) anos.push(y);
+  if (totalAnos >= 10 && totalAnos % 2 === 1 && !anos.includes(totalAnos)) {
+    anos.push(totalAnos);
+  }
+  return anos.map((y) => `Ano ${y}`);
+}
+
 interface GeracaoMensalChartProps {
   data: GeracaoMensalPoint[];
 }
@@ -99,13 +113,17 @@ export function PaybackChart({ data, paybackLabel }: PaybackChartProps) {
   const paybackAno = data.findIndex(
     (d) => d.economiaAcumulada >= d.investimento
   );
+  const axisTicks = buildPaybackAxisTicks(data.length);
+  const chartHeightClass =
+    data.length > 30 ? "h-80" : data.length > 20 ? "h-72" : data.length > 15 ? "h-64" : "h-56";
 
   return (
-    <div className="h-56 w-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 28, right: 16, left: 0, bottom: 0 }}>
-          <CartesianGrid stroke="#eef2f7" vertical={false} />
-          <XAxis dataKey="periodo" tick={TICK_STYLE} />
+    <div className="w-full">
+      <div className={chartHeightClass}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 28, right: 16, left: 0, bottom: 4 }}>
+            <CartesianGrid stroke="#eef2f7" vertical={false} />
+            <XAxis dataKey="periodo" ticks={axisTicks} tick={TICK_STYLE} />
           <YAxis
             tick={TICK_STYLE}
             tickFormatter={(v) =>
@@ -160,6 +178,10 @@ export function PaybackChart({ data, paybackLabel }: PaybackChartProps) {
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
+      <p className="mt-2 text-[9px] leading-snug text-slate-400 italic">
+        {PAYBACK_DISCLAIMER}
+      </p>
     </div>
   );
 }

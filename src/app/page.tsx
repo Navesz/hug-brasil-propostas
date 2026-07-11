@@ -14,6 +14,7 @@ import {
   gerarProximoNumeroOrcamento,
   inicializarSequenciaOrcamentos,
 } from "@/lib/storage";
+import { isLogoReference, isCroquiReference, resolveLogoUrl, resolveCroquiUrl } from "@/lib/logoStorage";
 import { duplicarProposta } from "@/lib/templates";
 import { validarPropostaParaPdf } from "@/lib/validation";
 import type { PropostaSolar } from "@/types/proposal";
@@ -63,6 +64,34 @@ export default function HomePage() {
       setHydrated(true);
     })();
   }, []);
+
+  useEffect(() => {
+    if (!hydrated || !isLogoReference(data.logoUrl)) return;
+    void resolveLogoUrl(data.logoUrl).then((resolved) => {
+      if (resolved && resolved !== data.logoUrl) {
+        setData((prev) => ({ ...prev, logoUrl: resolved }));
+      }
+    });
+  }, [hydrated, data.logoUrl]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const precisaResolver = data.kits.some(
+      (k) => k.croquiAtivo && isCroquiReference(k.croquiUrl)
+    );
+    if (!precisaResolver) return;
+
+    void Promise.all(
+      data.kits.map(async (k) => {
+        if (!k.croquiAtivo || !isCroquiReference(k.croquiUrl)) return k;
+        const url = await resolveCroquiUrl(k.croquiUrl);
+        return url ? { ...k, croquiUrl: url } : k;
+      })
+    ).then((kits) => {
+      const changed = kits.some((k, i) => k.croquiUrl !== data.kits[i]?.croquiUrl);
+      if (changed) setData((prev) => ({ ...prev, kits }));
+    });
+  }, [hydrated, data.kits]);
 
   useEffect(() => {
     if (!hydrated) return;

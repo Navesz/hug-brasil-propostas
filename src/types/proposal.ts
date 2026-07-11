@@ -26,6 +26,9 @@ export interface KitSistema {
   estruturas: string;
   acessorios: string;
   investimento: string;
+  croquiAtivo: boolean;
+  croquiTitulo: string;
+  croquiUrl: string;
 }
 
 export type ModoConsumo = "media" | "mensal";
@@ -34,6 +37,7 @@ export interface PropostaSolar {
   id: string;
   logoUrl: string;
   numeroOrcamento: string;
+  versaoProposta: string;
   dataProposta: string;
   validadeProposta: string;
 

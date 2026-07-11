@@ -1,3 +1,5 @@
+import { CROQUI_MAX_HEIGHT_PX } from "@/lib/constants";
+
 const HUG_BLUE = "#0066b3";
 const HUG_GREEN = "#2ecc71";
 const SLATE_200 = "#e2e8f0";
@@ -94,6 +96,25 @@ export function applyPdfSafeStyles(clone: HTMLElement): void {
   clone.querySelectorAll("[data-pdf-table-row]").forEach((node) => {
     const el = node as HTMLElement;
     el.style.borderBottom = "1px solid #94a3b8";
+  });
+
+  clone.querySelectorAll("[data-pdf-croqui-wrap]").forEach((node) => {
+    const el = node as HTMLElement;
+    el.style.width = "100%";
+    el.style.overflow = "hidden";
+    el.style.borderRadius = "6px";
+  });
+
+  clone.querySelectorAll("[data-pdf-croqui]").forEach((node) => {
+    const el = node as HTMLElement;
+    el.style.display = "block";
+    el.style.width = "100%";
+    el.style.maxWidth = "100%";
+    el.style.height = "auto";
+    el.style.maxHeight = `${CROQUI_MAX_HEIGHT_PX}px`;
+    el.style.objectFit = "contain";
+    el.style.borderRadius = "6px";
+    el.style.boxSizing = "border-box";
   });
 
   clone.querySelectorAll(".pdf-page-label").forEach((node) => {

@@ -1,5 +1,5 @@
 import type { KitSistema, PropostaSolar } from "@/types/proposal";
-import { DEFAULT_LOGO } from "@/lib/constants";
+import { DEFAULT_LOGO, DEFAULT_CROQUI_TITULO } from "@/lib/constants";
 import { gerarProximoNumeroOrcamento } from "@/lib/storage";
 
 /** IDs estáveis para o estado inicial (SSR + hidratação). */
@@ -38,6 +38,9 @@ export function createEmptyKit(
     estruturas: "Estruturas inclusas",
     acessorios: "Acessórios inclusos",
     investimento: "",
+    croquiAtivo: false,
+    croquiTitulo: DEFAULT_CROQUI_TITULO,
+    croquiUrl: "",
   };
 }
 
@@ -80,6 +83,7 @@ export function createDefaultProposal(novoOrcamento = false): PropostaSolar {
     id: gerarIdsNovos ? createNewId() : DEFAULT_PROPOSAL_ID,
     logoUrl: DEFAULT_LOGO,
     numeroOrcamento,
+    versaoProposta: "1.0",
     dataProposta,
     validadeProposta: calcularValidadeProposta(dataProposta),
 
@@ -166,8 +170,15 @@ export function normalizarProposta(data: Partial<PropostaSolar>): Partial<Propos
     ...data,
     modoConsumo,
     usarConsumoDetalhado: modoConsumo === "mensal",
+    versaoProposta: data.versaoProposta ?? "1.0",
     percentualMateriais: data.percentualMateriais ?? "70",
     percentualServicos: data.percentualServicos ?? "30",
     custoReferenciaKwp: data.custoReferenciaKwp ?? "4,50",
+    kits: data.kits?.map((k) => ({
+      ...k,
+      croquiAtivo: k.croquiAtivo ?? false,
+      croquiTitulo: k.croquiTitulo ?? DEFAULT_CROQUI_TITULO,
+      croquiUrl: k.croquiUrl ?? "",
+    })),
   };
 }

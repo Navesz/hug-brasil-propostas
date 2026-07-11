@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  BookmarkPlus,
   Copy,
   FolderOpen,
   LayoutTemplate,
@@ -16,7 +17,12 @@ import {
   listarPropostas,
   salvarProposta,
 } from "@/lib/storage";
-import { TEMPLATES, aplicarTemplate } from "@/lib/templates";
+import {
+  aplicarModelo,
+  excluirModelo,
+  listarModelos,
+  salvarModelo,
+} from "@/lib/templates";
 
 interface ProposalToolbarProps {
   data: PropostaSolar;
@@ -36,8 +42,10 @@ export function ProposalToolbar({
   const [showHistory, setShowHistory] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [history, setHistory] = useState<PropostaSalva[]>([]);
+  const [modelos, setModelos] = useState(listarModelos());
 
   const refreshHistory = () => setHistory(listarPropostas());
+  const refreshModelos = () => setModelos(listarModelos());
 
   const handleSave = async () => {
     try {
@@ -47,6 +55,15 @@ export function ProposalToolbar({
     } catch {
       alert("Erro ao salvar proposta. Tente novamente.");
     }
+  };
+
+  const handleSalvarModelo = () => {
+    const nome = prompt("Nome do modelo:", "Meu modelo padrão");
+    if (!nome?.trim()) return;
+    salvarModelo(nome.trim(), data);
+    refreshModelos();
+    setShowTemplates(true);
+    setShowHistory(false);
   };
 
   return (
@@ -76,6 +93,7 @@ export function ProposalToolbar({
       <button
         type="button"
         onClick={() => {
+          refreshModelos();
           setShowTemplates(!showTemplates);
           setShowHistory(false);
         }}
@@ -83,6 +101,15 @@ export function ProposalToolbar({
       >
         <LayoutTemplate className="h-4 w-4" />
         Modelos
+      </button>
+
+      <button
+        type="button"
+        onClick={handleSalvarModelo}
+        className="flex items-center gap-1.5 rounded-lg border border-hug-green/40 bg-hug-green/5 px-3 py-2 text-sm font-medium text-hug-green transition hover:bg-hug-green/10"
+      >
+        <BookmarkPlus className="h-4 w-4" />
+        Salvar modelo
       </button>
 
       <button
@@ -157,24 +184,47 @@ export function ProposalToolbar({
       {showTemplates && (
         <div className="w-full rounded-xl border border-slate-100 bg-slate-50 p-3">
           <p className="mb-2 text-xs font-semibold uppercase text-slate-500">
-            Modelos prontos
+            Meus modelos
           </p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => {
-                  onLoad(aplicarTemplate(t.id));
-                  setShowTemplates(false);
-                }}
-                className="rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-hug-blue hover:shadow-sm"
-              >
-                <p className="font-medium text-slate-800">{t.nome}</p>
-                <p className="text-xs text-slate-500">{t.descricao}</p>
-              </button>
-            ))}
-          </div>
+          {modelos.length === 0 ? (
+            <p className="text-sm text-slate-400">
+              Nenhum modelo salvo. Use &quot;Salvar modelo&quot; para criar um a partir da
+              proposta atual.
+            </p>
+          ) : (
+            <ul className="max-h-48 space-y-1 overflow-y-auto">
+              {modelos.map((m) => (
+                <li
+                  key={m.id}
+                  className="flex items-center justify-between rounded-lg bg-white px-3 py-2 text-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onLoad(aplicarModelo(m.id));
+                      setShowTemplates(false);
+                    }}
+                    className="flex-1 text-left hover:text-hug-blue"
+                  >
+                    <span className="font-medium">{m.nome}</span>
+                    <span className="ml-2 text-xs text-slate-400">
+                      {new Date(m.criadoEm).toLocaleDateString("pt-BR")}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      excluirModelo(m.id);
+                      refreshModelos();
+                    }}
+                    className="ml-2 rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

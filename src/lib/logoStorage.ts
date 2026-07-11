@@ -4,6 +4,7 @@ const DB_NAME = "hug-brasil-storage";
 const DB_VERSION = 1;
 const STORE_NAME = "logos";
 export const LOGO_REF_PREFIX = "idb://logo/";
+export const CROQUI_REF_PREFIX = "idb://croqui/";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -77,5 +78,30 @@ export async function deleteLogo(propostaId: string): Promise<void> {
 export async function resolveLogoUrl(logoUrl: string): Promise<string> {
   if (!logoUrl || !isLogoReference(logoUrl)) return logoUrl;
   const stored = await loadLogo(logoUrl);
+  return stored ?? "";
+}
+
+export function isCroquiReference(url: string | undefined | null): boolean {
+  return Boolean(url?.startsWith(CROQUI_REF_PREFIX));
+}
+
+export async function saveCroqui(kitId: string, dataUrl: string): Promise<string> {
+  const compressed = await compressImageDataUrl(dataUrl);
+  await idbSet(`croqui:${kitId}`, compressed);
+  return `${CROQUI_REF_PREFIX}${kitId}`;
+}
+
+export async function loadCroqui(ref: string): Promise<string | null> {
+  if (!ref) return null;
+  if (ref.startsWith("/") || ref.startsWith("data:")) return ref;
+  if (!isCroquiReference(ref)) return ref;
+
+  const kitId = ref.slice(CROQUI_REF_PREFIX.length);
+  return idbGet(`croqui:${kitId}`);
+}
+
+export async function resolveCroquiUrl(croquiUrl: string): Promise<string> {
+  if (!croquiUrl || !isCroquiReference(croquiUrl)) return croquiUrl;
+  const stored = await loadCroqui(croquiUrl);
   return stored ?? "";
 }

@@ -5,7 +5,8 @@ import { Cpu, ImagePlus, Plus, Trash2, Zap } from "lucide-react";
 import { CalculadoraAvancada } from "@/components/CalculadoraAvancada";
 import type { KitSistema, PropostaSolar, TipoSistema } from "@/types/proposal";
 import { createEmptyKit } from "@/lib/defaultProposal";
-import { Field, ReadOnlyField, SectionCard, Select, TextArea } from "./ui/FormFields";
+import { Field, ReadOnlyField, SectionCard, Select, TextArea, Checkbox } from "./ui/FormFields";
+import { DEFAULT_CROQUI_TITULO } from "@/lib/constants";
 import { parseBrNumber } from "@/lib/calculations";
 import { compressImageFile } from "@/lib/imageUtils";
 
@@ -14,17 +15,19 @@ interface ProposalFormProps {
   onChange: (data: PropostaSolar) => void;
 }
 
-function updateKit(
+function updateKit<K extends keyof KitSistema>(
   kits: KitSistema[],
   id: string,
-  field: keyof KitSistema,
-  value: string
+  field: K,
+  value: KitSistema[K]
 ): KitSistema[] {
   return kits.map((k) => (k.id === id ? { ...k, [field]: value } : k));
 }
 
 export function ProposalForm({ data, onChange }: ProposalFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const croquiInputRef = useRef<HTMLInputElement>(null);
+  const croquiKitIdRef = useRef<string | null>(null);
 
   const set = <K extends keyof PropostaSolar>(key: K, value: PropostaSolar[K]) => {
     onChange({ ...data, [key]: value });
@@ -40,6 +43,25 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
       alert("Não foi possível processar a imagem. Tente outro arquivo.");
     }
     e.target.value = "";
+  };
+
+  const handleCroquiUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const kitId = croquiKitIdRef.current;
+    if (!file || !kitId) return;
+    try {
+      const compressed = await compressImageFile(file);
+      onChange({
+        ...data,
+        kits: data.kits.map((k) =>
+          k.id === kitId ? { ...k, croquiUrl: compressed, croquiAtivo: true } : k
+        ),
+      });
+    } catch {
+      alert("Não foi possível processar a imagem. Tente outro arquivo.");
+    }
+    e.target.value = "";
+    croquiKitIdRef.current = null;
   };
 
   const addKit = () => {
@@ -90,7 +112,7 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
                 onChange={handleLogoUpload}
                 className="hidden"
               />
@@ -121,7 +143,14 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
             <ReadOnlyField
               label="Nº do Orçamento"
               value={data.numeroOrcamento}
-              hint="Gerado automaticamente (0001, 0002…)"
+              hint="Gerado automaticamente (00500, 00501…)"
+            />
+            <Field
+              label="Versão da Proposta"
+              value={data.versaoProposta}
+              onChange={(v) => set("versaoProposta", v)}
+              placeholder="Ex: 1.0"
+              hint="Controle de revisões do orçamento"
             />
           </div>
 
@@ -507,8 +536,76 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
                   }
                 />
               </div>
+
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <Checkbox
+                  label="Incluir croqui/foto na proposta"
+                  checked={kit.croquiAtivo}
+                  onChange={(v) =>
+                    set("kits", updateKit(data.kits, kit.id, "croquiAtivo", v))
+                  }
+                />
+                {kit.croquiAtivo && (
+                  <div className="mt-3 space-y-3">
+                    <Field
+                      label="Título da imagem"
+                      value={kit.croquiTitulo || DEFAULT_CROQUI_TITULO}
+                      onChange={(v) =>
+                        set("kits", updateKit(data.kits, kit.id, "croquiTitulo", v))
+                      }
+                      placeholder={DEFAULT_CROQUI_TITULO}
+                    />
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          croquiKitIdRef.current = kit.id;
+                          croquiInputRef.current?.click();
+                        }}
+                        className="flex items-center gap-2 rounded-lg border border-hug-blue/30 bg-white px-3 py-2 text-sm font-medium text-hug-blue hover:bg-hug-blue/5"
+                      >
+                        <ImagePlus className="h-4 w-4" />
+                        {kit.croquiUrl ? "Trocar imagem" : "Enviar imagem"}
+                      </button>
+                      {kit.croquiUrl && (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={kit.croquiUrl}
+                            alt="Croqui"
+                            className="h-16 w-auto max-w-[120px] rounded border border-slate-200 object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              set(
+                                "kits",
+                                updateKit(data.kits, kit.id, "croquiUrl", "")
+                              )
+                            }
+                            className="text-xs text-red-500 hover:underline"
+                          >
+                            Remover
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      PNG ou JPG. Altura máx. 500px, proporção preservada.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
+
+          <input
+            ref={croquiInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={handleCroquiUpload}
+            className="hidden"
+          />
 
           <button
             type="button"

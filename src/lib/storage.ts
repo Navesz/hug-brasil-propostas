@@ -1,15 +1,23 @@
-import type { PropostaSalva, PropostaSolar } from "@/types/proposal";
 import {
   isLogoReference,
+  isCroquiReference,
   loadLogo,
+  loadCroqui,
   LOGO_REF_PREFIX,
+  CROQUI_REF_PREFIX,
   saveLogo,
+  saveCroqui,
 } from "@/lib/logoStorage";
+import type { KitSistema, PropostaSalva, PropostaSolar } from "@/types/proposal";
 
 const STORAGE_KEY = "hug-brasil-propostas";
 const DRAFT_KEY = "hug-brasil-rascunho-atual";
 const ORCAMENTO_SEQ_KEY = "hug-brasil-orcamento-seq";
 const ORCAMENTO_REGISTRO_KEY = "hug-brasil-orcamentos-registro";
+
+/** Primeiro orçamento gerado será 00500. */
+export const ORCAMENTO_NUMERO_INICIO = 500;
+export const ORCAMENTO_NUMERO_DIGITOS = 5;
 
 export interface RegistroOrcamento {
   numero: string;
@@ -26,7 +34,7 @@ export interface SalvarRascunhoResult {
 }
 
 export function formatarNumeroOrcamento(seq: number): string {
-  return String(seq).padStart(4, "0");
+  return String(seq).padStart(ORCAMENTO_NUMERO_DIGITOS, "0");
 }
 
 function lerSequenciaOrcamento(): number {
@@ -84,8 +92,64 @@ export function registrarOrcamento(data: PropostaSolar): void {
   );
 }
 
-function isDataUrlLogo(url: string | undefined): boolean {
+function isDataUrlImage(url: string | undefined): boolean {
   return Boolean(url?.startsWith("data:image/"));
+}
+
+async function persistKitsCroquis(kits: KitSistema[]): Promise<KitSistema[]> {
+  return Promise.all(
+    kits.map(async (kit) => {
+      if (!kit.croquiAtivo || !isDataUrlImage(kit.croquiUrl)) return kit;
+      try {
+        const ref = await saveCroqui(kit.id, kit.croquiUrl);
+        return { ...kit, croquiUrl: ref };
+      } catch {
+        return { ...kit, croquiUrl: `${CROQUI_REF_PREFIX}${kit.id}` };
+      }
+    })
+  );
+}
+
+function stripKitsCroquis(kits: KitSistema[]): KitSistema[] {
+  return kits.map((kit) => ({
+    ...kit,
+    croquiUrl: isDataUrlImage(kit.croquiUrl)
+      ? `${CROQUI_REF_PREFIX}${kit.id}`
+      : kit.croquiUrl,
+  }));
+}
+
+async function resolveKitsCroquis(kits: KitSistema[]): Promise<KitSistema[]> {
+  return Promise.all(
+    kits.map(async (kit) => {
+      if (!isCroquiReference(kit.croquiUrl)) return kit;
+      const url = await loadCroqui(kit.croquiUrl);
+      return url ? { ...kit, croquiUrl: url } : { ...kit, croquiUrl: "" };
+    })
+  );
+}
+
+async function resolvePropostaImagens(data: PropostaSolar): Promise<PropostaSolar> {
+  let next = { ...data };
+  if (isLogoReference(next.logoUrl)) {
+    const logo = await loadLogo(next.logoUrl);
+    if (logo) next = { ...next, logoUrl: logo };
+  }
+  next = { ...next, kits: await resolveKitsCroquis(next.kits) };
+  return next;
+}
+
+function isDataUrlLogo(url: string | undefined): boolean {
+  return isDataUrlImage(url);
+}
+
+async function persistPropostaImagens(data: PropostaSolar): Promise<PropostaSolar> {
+  let next = data;
+  if (isDataUrlLogo(data.logoUrl)) {
+    next = await persistLogoIfNeeded(data);
+  }
+  next = { ...next, kits: await persistKitsCroquis(next.kits) };
+  return next;
 }
 
 async function persistLogoIfNeeded(data: PropostaSolar): Promise<PropostaSolar> {
@@ -100,6 +164,13 @@ function stripLogoForStorage(data: PropostaSolar): PropostaSolar {
     return { ...data, logoUrl: `${LOGO_REF_PREFIX}${data.id}` };
   }
   return data;
+}
+
+function stripPropostaParaStorage(data: PropostaSolar): PropostaSolar {
+  return {
+    ...stripLogoForStorage(data),
+    kits: stripKitsCroquis(data.kits),
+  };
 }
 
 function trySetItem(key: string, value: string): void {
@@ -133,9 +204,9 @@ export async function salvarProposta(
 ): Promise<PropostaSalva> {
   let persisted = data;
   try {
-    persisted = await persistLogoIfNeeded(data);
+    persisted = await persistPropostaImagens(data);
   } catch {
-    // Logo permanece só em memória se IndexedDB falhar
+    // Imagens permanecem só em memória se IndexedDB falhar
   }
 
   const list = listarPropostas();
@@ -149,7 +220,7 @@ export async function salvarProposta(
     numeroOrcamento: data.numeroOrcamento,
     updatedAt: now,
     data: {
-      ...stripLogoForStorage(persisted),
+      ...stripPropostaParaStorage(persisted),
       id: data.id || crypto.randomUUID(),
     },
   };
@@ -163,10 +234,14 @@ export async function salvarProposta(
 
   return {
     ...entry,
-    data: {
+    data: await resolvePropostaImagens({
       ...entry.data,
       logoUrl: isDataUrlLogo(data.logoUrl) ? data.logoUrl : entry.data.logoUrl,
-    },
+      kits: data.kits.map((k, i) => ({
+        ...entry.data.kits[i],
+        croquiUrl: isDataUrlImage(k.croquiUrl) ? k.croquiUrl : entry.data.kits[i]?.croquiUrl ?? "",
+      })),
+    }),
   };
 }
 
@@ -174,12 +249,7 @@ export async function carregarProposta(id: string): Promise<PropostaSolar | null
   const found = listarPropostas().find((p) => p.id === id);
   if (!found) return null;
 
-  const data = { ...found.data };
-  if (isLogoReference(data.logoUrl)) {
-    const logo = await loadLogo(data.logoUrl);
-    if (logo) data.logoUrl = logo;
-  }
-  return data;
+  return resolvePropostaImagens({ ...found.data });
 }
 
 export function excluirProposta(id: string): void {
@@ -196,16 +266,15 @@ export async function salvarRascunho(data: PropostaSolar): Promise<SalvarRascunh
   let payload = data;
 
   try {
-    if (isDataUrlLogo(data.logoUrl)) {
-      payload = await persistLogoIfNeeded(data);
+    if (isDataUrlLogo(data.logoUrl) || data.kits.some((k) => k.croquiAtivo && isDataUrlImage(k.croquiUrl))) {
+      payload = await persistPropostaImagens(data);
       logoPersisted = true;
     }
   } catch {
-    // IndexedDB indisponível — tenta salvar sem logo embutida
-    payload = stripLogoForStorage(data);
+    payload = stripPropostaParaStorage(data);
   }
 
-  const toStore = stripLogoForStorage(payload);
+  const toStore = stripPropostaParaStorage(payload);
 
   try {
     trySetItem(DRAFT_KEY, JSON.stringify(toStore));
@@ -243,11 +312,7 @@ export async function carregarRascunho(): Promise<PropostaSolar | null> {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as PropostaSolar;
-    if (isLogoReference(data.logoUrl)) {
-      const logo = await loadLogo(data.logoUrl);
-      if (logo) data.logoUrl = logo;
-    }
-    return data;
+    return resolvePropostaImagens(data);
   } catch {
     return null;
   }
@@ -267,4 +332,10 @@ export function inicializarSequenciaOrcamentos(): void {
     ...registro.map((r) => r.numero),
   ].filter(Boolean);
   numeros.forEach((n) => sincronizarSequenciaOrcamento(n));
+
+  const atual = lerSequenciaOrcamento();
+  const minimo = ORCAMENTO_NUMERO_INICIO - 1;
+  if (atual < minimo) {
+    salvarSequenciaOrcamento(minimo);
+  }
 }

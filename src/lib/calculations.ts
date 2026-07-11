@@ -98,6 +98,45 @@ function formatPaybackLabel(months: number): string {
   return `${anos} ${anos === 1 ? "ano" : "anos"} e ${mesesRestantes} ${mesesRestantes === 1 ? "mês" : "meses"}`;
 }
 
+function calcularMesesPayback(
+  investimento: number,
+  economiaMensal: number,
+  aumentoAnual: number,
+  perdaAnual: number,
+  maxAnos: number
+): number {
+  if (investimento <= 0 || economiaMensal <= 0) return 0;
+
+  let acumulado = 0;
+  for (let ano = 1; ano <= maxAnos; ano++) {
+    const fatorTarifa = Math.pow(1 + aumentoAnual / 100, ano - 1);
+    const fatorGeracaoAnual = Math.pow(1 - perdaAnual / 100, ano - 1);
+    const economiaAno = economiaMensal * 12 * fatorTarifa * fatorGeracaoAnual;
+    acumulado += economiaAno;
+
+    if (acumulado >= investimento) {
+      const acumuladoAnterior = acumulado - economiaAno;
+      const restante = investimento - acumuladoAnterior;
+      const mesesNoAno = Math.ceil((restante / economiaAno) * 12);
+      return (ano - 1) * 12 + mesesNoAno;
+    }
+  }
+  return 0;
+}
+
+function formatPaybackResult(
+  paybackMeses: number,
+  investimento: number,
+  economiaMensal: number,
+  maxAnosConsulta: number
+): string {
+  if (paybackMeses > 0) return formatPaybackLabel(paybackMeses);
+  if (investimento > 0 && economiaMensal > 0) {
+    return `mais de ${maxAnosConsulta} anos`;
+  }
+  return "—";
+}
+
 function getConsumoMensal(data: PropostaSolar): number {
   if (isModoMensal(data) && data.consumoMensalDetalhado?.length === 12) {
     const valores = data.consumoMensalDetalhado.map(parseBrNumber).filter((v) => v > 0);
@@ -260,12 +299,26 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
     consumo: Math.round(consumoPorMes[i]),
   }));
 
+  const maxAnosPayback = 80;
+
+  const paybackMeses = calcularMesesPayback(
+    investimento,
+    economiaMensal,
+    aumentoAnual,
+    perdaAnual,
+    maxAnosPayback
+  );
+
+  const anosPayback = paybackMeses > 0 ? Math.ceil(paybackMeses / 12) : 0;
+  const maxAnosGrafico = Math.min(
+    maxAnosPayback,
+    Math.max(15, anosPayback > 0 ? anosPayback + 3 : 15)
+  );
+
   const payback: PaybackPoint[] = [];
   let acumulado = 0;
-  let paybackMeses = 0;
-  const maxAnos = 15;
 
-  for (let ano = 1; ano <= maxAnos; ano++) {
+  for (let ano = 1; ano <= maxAnosGrafico; ano++) {
     const fatorTarifa = Math.pow(1 + aumentoAnual / 100, ano - 1);
     const fatorGeracaoAnual = Math.pow(1 - perdaAnual / 100, ano - 1);
     const economiaAno = economiaMensal * 12 * fatorTarifa * fatorGeracaoAnual;
@@ -276,17 +329,14 @@ export function calcularProposta(data: PropostaSolar): CalculoProposta {
       economiaAcumulada: Math.round(acumulado),
       investimento: Math.round(investimento),
     });
-
-    if (paybackMeses === 0 && investimento > 0 && acumulado >= investimento) {
-      const acumuladoAnterior = acumulado - economiaAno;
-      const restante = investimento - acumuladoAnterior;
-      const mesesNoAno = Math.ceil((restante / economiaAno) * 12);
-      paybackMeses = (ano - 1) * 12 + mesesNoAno;
-    }
   }
 
-  const paybackCalculado =
-    paybackMeses > 0 ? formatPaybackLabel(paybackMeses) : "—";
+  const paybackCalculado = formatPaybackResult(
+    paybackMeses,
+    investimento,
+    economiaMensal,
+    maxAnosPayback
+  );
 
   return {
     geracaoMensalMedia,
@@ -329,7 +379,7 @@ export function aplicarCalculos(data: PropostaSolar): PropostaSolar {
     percentualCobertura: calc.percentualCobertura
       ? formatBrNumber(calc.percentualCobertura, 0)
       : data.percentualCobertura,
-    payback: calc.paybackLabel !== "—" ? calc.paybackLabel : data.payback,
+    payback: calc.paybackLabel,
     custoPorWp: calc.custoPorWp ? formatBrNumber(calc.custoPorWp) : data.custoPorWp,
     investimentoMateriais:
       calc.investimentoMateriais > 0

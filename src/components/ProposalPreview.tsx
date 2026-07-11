@@ -20,9 +20,14 @@ import { calcularProposta, parseBrNumber } from "@/lib/calculations";
 import {
   EconomiaAnualChart,
   GeracaoMensalChart,
+  PAYBACK_DISCLAIMER,
   PaybackChart,
 } from "@/components/charts/ProposalCharts";
 import { useA4Pagination } from "@/hooks/useA4Pagination";
+import {
+  CROQUI_MAX_HEIGHT_PX,
+  IRRADIACAO_DISCLAIMER,
+} from "@/lib/constants";
 import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
@@ -156,6 +161,11 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
                   {data.numeroOrcamento && (
                     <p className="mt-1 text-sm text-white/90">
                       Orçamento Nº <strong>{data.numeroOrcamento}</strong>
+                      {data.versaoProposta && (
+                        <span className="ml-2 text-white/70">
+                          · v{data.versaoProposta}
+                        </span>
+                      )}
                     </p>
                   )}
                 </div>
@@ -315,6 +325,9 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
               <p className="mb-4 text-xs text-slate-500">
                 Com base no sistema proposto, considerando perdas e irradiação do local, a
                 geração mês a mês em média:
+              </p>
+              <p className="mb-3 text-[9px] italic text-slate-400">
+                {IRRADIACAO_DISCLAIMER}
               </p>
               <GeracaoMensalChart data={calc.geracaoMensal} />
             </div>
@@ -494,6 +507,26 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
                         ))}
                     </tbody>
                   </table>
+                  {kit.croquiAtivo && kit.croquiUrl && (
+                    <div className="mt-4 border-t border-slate-200 pt-4">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {kit.croquiTitulo || "Croqui / Local de Instalação"}
+                      </p>
+                      <div
+                        data-pdf-croqui-wrap
+                        className="w-full overflow-hidden rounded-md"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          data-pdf-croqui
+                          src={kit.croquiUrl}
+                          alt={kit.croquiTitulo || "Croqui"}
+                          className="block w-full max-w-full rounded-md object-contain"
+                          style={{ maxHeight: `${CROQUI_MAX_HEIGHT_PX}px` }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>,
@@ -585,6 +618,9 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
                 <p className="mt-1 text-xs text-slate-400">
                   Calculado com aumento anual de {data.aumentoAnualEnergia}% na energia e
                   perda de {data.perdaPotenciaAnual}%/ano nos módulos
+                </p>
+                <p className="mt-2 text-[9px] leading-snug text-slate-400 italic">
+                  {PAYBACK_DISCLAIMER}
                 </p>
               </div>
             </div>
