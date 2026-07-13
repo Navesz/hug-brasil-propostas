@@ -138,7 +138,7 @@ O aplicativo verifica online se está autorizado a funcionar. O controle fica no
 
 Na próxima abertura do app (ou em até 5 minutos, se já estiver aberto), o acesso será bloqueado. Sem internet, o app também não abre.
 
-O script `atualizar-e-iniciar.bat` também faz essa verificação antes de iniciar o servidor.
+O script `atualizar-e-iniciar.bat` também faz essa verificação antes de iniciar o servidor. Ele usa a pasta onde o `.bat` está salvo, então funciona em qualquer computador (requer Node.js e Git instalados).
 
 ---
 

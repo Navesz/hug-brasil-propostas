@@ -1,5 +1,19 @@
 @echo off
-cd /d C:\Users\Pedro\hug-brasil-propostas
+cd /d "%~dp0"
+
+where node >nul 2>&1
+if errorlevel 1 (
+  echo Node.js nao encontrado. Instale com: winget install OpenJS.NodeJS.LTS
+  pause
+  exit /b 1
+)
+
+where git >nul 2>&1
+if errorlevel 1 (
+  echo Git nao encontrado. Instale com: winget install Git.Git
+  pause
+  exit /b 1
+)
 
 echo Verificando acesso remoto...
 node scripts\check-access.js
