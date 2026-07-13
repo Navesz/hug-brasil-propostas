@@ -12,8 +12,10 @@ function fail(message) {
   process.exit(1);
 }
 
+const url = `${ACCESS_CONFIG_URL}?t=${Date.now()}`;
+
 https
-  .get(ACCESS_CONFIG_URL, { timeout: 10_000 }, (response) => {
+  .get(url, { timeout: 10_000 }, (response) => {
     if (response.statusCode !== 200) {
       fail("Nao foi possivel verificar o acesso. Verifique sua conexao com a internet.");
     }

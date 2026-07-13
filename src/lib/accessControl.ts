@@ -10,7 +10,8 @@ const ACCESS_CONFIG_URL =
 const RECHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 export async function fetchAccessConfig(): Promise<AccessConfig> {
-  const response = await fetch(ACCESS_CONFIG_URL, {
+  const url = `${ACCESS_CONFIG_URL}?t=${Date.now()}`;
+  const response = await fetch(url, {
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
   });
