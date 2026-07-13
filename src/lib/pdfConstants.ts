@@ -11,3 +11,9 @@ export function mmToPx(mm: number): number {
 
 export const PDF_PAGE_CONTENT_HEIGHT_PX = mmToPx(PDF_CONTENT_HEIGHT_MM);
 export const PDF_PAGE_WIDTH_PX = mmToPx(A4_WIDTH_MM);
+
+/** Escala do html2canvas na exportação. */
+export const PDF_CAPTURE_SCALE = 2;
+
+/** Qualidade JPEG do PDF (0–1). */
+export const PDF_JPEG_QUALITY = 1;

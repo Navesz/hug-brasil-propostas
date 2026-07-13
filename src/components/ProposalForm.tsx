@@ -50,7 +50,7 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
     const kitId = croquiKitIdRef.current;
     if (!file || !kitId) return;
     try {
-      const compressed = await compressImageFile(file);
+      const compressed = await compressImageFile(file, 1200);
       onChange({
         ...data,
         kits: data.kits.map((k) =>

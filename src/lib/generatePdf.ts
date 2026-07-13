@@ -3,6 +3,8 @@ import { jsPDF } from "jspdf";
 import {
   A4_HEIGHT_MM,
   A4_WIDTH_MM,
+  PDF_CAPTURE_SCALE,
+  PDF_JPEG_QUALITY,
   PDF_MARGIN_MM,
 } from "@/lib/pdfConstants";
 import { applyPdfSafeStyles } from "@/lib/pdfStyles";
@@ -158,7 +160,7 @@ async function captureElementToCanvas(
   element: HTMLElement
 ): Promise<HTMLCanvasElement> {
   return html2canvas(element, {
-    scale: 2,
+    scale: PDF_CAPTURE_SCALE,
     useCORS: true,
     logging: false,
     backgroundColor: "#ffffff",
@@ -184,6 +186,7 @@ async function buildPdfFromElement(element: HTMLElement): Promise<jsPDF> {
     orientation: "portrait",
     unit: "mm",
     format: "a4",
+    compress: true,
   });
 
   const pageElements = element.querySelectorAll(".pdf-page");
@@ -203,8 +206,8 @@ async function buildPdfFromElement(element: HTMLElement): Promise<jsPDF> {
     const drawHeight = Math.min(imgHeightMm, A4_HEIGHT_MM);
 
     pdf.addImage(
-      canvas.toDataURL("image/png"),
-      "PNG",
+      canvas.toDataURL("image/jpeg", PDF_JPEG_QUALITY),
+      "JPEG",
       0,
       0,
       imgWidthMm,
