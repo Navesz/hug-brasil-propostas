@@ -51,7 +51,7 @@ const ETAPAS = [
 ];
 
 const PAGAMENTO_ICONS: Record<string, { label: string; Icon: typeof Banknote }> = {
-  transferencia: { label: "Transferência Bancária", Icon: Landmark },
+  transferencia: { label: "Transf. Bancária", Icon: Landmark },
   cartao: { label: "Cartão de Crédito", Icon: CreditCard },
   boleto: { label: "Boleto Bancário", Icon: Barcode },
   financiamento: { label: "Financiamento", Icon: Banknote },
@@ -595,7 +595,12 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
                 )}
               </div>
               {formasAtivas.length > 0 && (
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div
+                  className="mt-3 grid gap-1.5"
+                  style={{
+                    gridTemplateColumns: `repeat(${formasAtivas.length}, minmax(0, 1fr))`,
+                  }}
+                >
                   {formasAtivas.map(([key]) => {
                     const item = PAGAMENTO_ICONS[key];
                     if (!item) return null;
@@ -603,10 +608,10 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
                     return (
                       <div
                         key={key}
-                        className="flex flex-col items-center rounded-xl bg-white p-3 shadow-sm"
+                        className="flex min-w-0 flex-col items-center rounded-lg bg-white px-1 py-2 shadow-sm"
                       >
-                        <Icon className="h-6 w-6 text-hug-blue" />
-                        <span className="mt-1 text-center text-[10px] font-medium text-slate-600">
+                        <Icon className="h-4 w-4 shrink-0 text-hug-blue" />
+                        <span className="mt-1 text-center text-[10px] font-medium leading-tight text-slate-600">
                           {label}
                         </span>
                       </div>
