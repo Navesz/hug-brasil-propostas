@@ -130,6 +130,26 @@ function stripStylesheetsAndInjectFixes(clonedDoc: Document): void {
     .pdf-export-clone [data-pdf-bg-blue] p {
       line-height: normal !important;
     }
+    .pdf-export-clone [data-pdf-logo-wrap] {
+      flex-shrink: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 80px !important;
+      max-width: 80px !important;
+      height: 80px !important;
+      max-height: 80px !important;
+      overflow: hidden !important;
+      box-sizing: border-box !important;
+    }
+    .pdf-export-clone [data-pdf-logo] {
+      display: block !important;
+      width: auto !important;
+      height: auto !important;
+      max-width: 100% !important;
+      max-height: 100% !important;
+      object-fit: contain !important;
+    }
   `;
   clonedDoc.head.appendChild(style);
 }

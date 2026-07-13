@@ -43,6 +43,9 @@ export const DEFAULT_LOGO = "/logo-hug-brasil.svg";
 
 export const DEFAULT_CROQUI_TITULO = "Croqui / Local de Instalação";
 
+/** Tamanho da logo no cabeçalho da proposta (80×80 px). */
+export const LOGO_SIZE_PX = 80;
+
 /** Altura máxima do croqui na proposta. */
 export const CROQUI_MAX_HEIGHT_PX = 500;
 

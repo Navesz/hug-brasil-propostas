@@ -27,6 +27,7 @@ import { useA4Pagination } from "@/hooks/useA4Pagination";
 import {
   CROQUI_MAX_HEIGHT_PX,
   IRRADIACAO_DISCLAIMER,
+  LOGO_SIZE_PX,
 } from "@/lib/constants";
 import {
   A4_HEIGHT_MM,
@@ -101,7 +102,7 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
     const sectionBlocks = useMemo(() => {
       // Cada bloco interno é mantido junto na mesma página.
       const blocks: string[][] = [
-        ["header", "client-bar", "intro"],
+        ["header", "intro"],
         ["kpi"],
         ["etapas"],
         ["chart-geracao"],
@@ -135,79 +136,91 @@ export const ProposalPreview = forwardRef<HTMLDivElement, ProposalPreviewProps>(
     const sections = useMemo(
       () => ({
         header: (
-          <div
-            data-pdf-header
-            className="bg-gradient-to-r from-hug-blue to-[#1a6bb5] px-8 py-6 text-white"
-          >
-            <div className="flex items-center justify-between gap-6">
-              <div className="flex min-w-0 items-center gap-5">
-                {data.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={data.logoUrl}
-                    alt="Logo"
-                    className="h-20 w-auto max-w-[180px] shrink-0 rounded-lg bg-white p-2 object-contain"
-                  />
-                ) : (
-                  <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white/20 text-3xl font-bold">
-                    H
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-widest text-white/70">
-                    Proposta Comercial
-                  </p>
-                  <p className="text-xl font-semibold leading-tight">Energia Solar</p>
-                  {data.numeroOrcamento && (
-                    <p className="mt-1 text-sm text-white/90">
-                      Orçamento Nº <strong>{data.numeroOrcamento}</strong>
-                      {data.versaoProposta && (
-                        <span className="ml-2 text-white/70">
-                          · v{data.versaoProposta}
-                        </span>
-                      )}
-                    </p>
+          <>
+            <div
+              data-pdf-header
+              className="bg-gradient-to-r from-hug-blue to-[#1a6bb5] px-8 py-6 text-white"
+            >
+              <div className="flex items-center justify-between gap-6">
+                <div className="flex min-w-0 items-center gap-5">
+                  {data.logoUrl ? (
+                    <div
+                      data-pdf-logo-wrap
+                      className="flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-2"
+                      style={{
+                        width: LOGO_SIZE_PX,
+                        maxWidth: LOGO_SIZE_PX,
+                        height: LOGO_SIZE_PX,
+                        maxHeight: LOGO_SIZE_PX,
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        data-pdf-logo
+                        src={data.logoUrl}
+                        alt="Logo"
+                        className="block max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white/20 text-3xl font-bold">
+                      H
+                    </div>
                   )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-widest text-white/70">
+                      Proposta Comercial
+                    </p>
+                    <p className="text-xl font-semibold leading-tight">Energia Solar</p>
+                    {data.numeroOrcamento && (
+                      <p className="mt-1 text-sm text-white/90">
+                        Orçamento Nº <strong>{data.numeroOrcamento}</strong>
+                        {data.versaoProposta && (
+                          <span className="ml-2 text-white/70">
+                            · v{data.versaoProposta}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right text-sm">
+                  <p className="text-white/80">CNPJ {data.empresaCnpj}</p>
+                  <p className="mt-1 text-white/90">
+                    <span className="text-white/70">Data: </span>
+                    {data.dataProposta}
+                  </p>
+                  <p className="text-white/90">
+                    <span className="text-white/70">Validade: </span>
+                    {data.validadeProposta}
+                  </p>
                 </div>
               </div>
-              <div className="shrink-0 text-right text-sm">
-                <p className="text-white/80">CNPJ {data.empresaCnpj}</p>
-                <p className="mt-1 text-white/90">
-                  <span className="text-white/70">Data: </span>
-                  {data.dataProposta}
-                </p>
-                <p className="text-white/90">
-                  <span className="text-white/70">Validade: </span>
-                  {data.validadeProposta}
-                </p>
+            </div>
+            <div
+              data-pdf-client-bar
+              className="border-b-4 border-hug-green bg-slate-50 px-8 py-5"
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-hug-blue">
+                    Cliente
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-slate-900">
+                    {data.nomeCliente || "—"}
+                  </p>
+                  {data.enderecoInstalacao && (
+                    <p className="mt-1 text-sm text-slate-600">{data.enderecoInstalacao}</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-start sm:justify-end">
+                  <p className="inline-block rounded-full bg-hug-green/15 px-3 py-1 text-xs font-semibold text-hug-green">
+                    {tipoSistemaLabel(data.tipoSistema)}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        ),
-        "client-bar": (
-          <div
-            data-pdf-client-bar
-            className="border-b-4 border-hug-green bg-slate-50 px-8 py-5"
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-hug-blue">
-                  Cliente
-                </p>
-                <p className="mt-1 text-xl font-bold text-slate-900">
-                  {data.nomeCliente || "—"}
-                </p>
-                {data.enderecoInstalacao && (
-                  <p className="mt-1 text-sm text-slate-600">{data.enderecoInstalacao}</p>
-                )}
-              </div>
-              <div className="flex items-center justify-start sm:justify-end">
-                <p className="inline-block rounded-full bg-hug-green/15 px-3 py-1 text-xs font-semibold text-hug-green">
-                  {tipoSistemaLabel(data.tipoSistema)}
-                </p>
-              </div>
-            </div>
-          </div>
+          </>
         ),
         intro: (
           <div className="px-8 pt-6">

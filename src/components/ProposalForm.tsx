@@ -37,7 +37,7 @@ export function ProposalForm({ data, onChange }: ProposalFormProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const compressed = await compressImageFile(file);
+      const compressed = await compressImageFile(file, 160);
       set("logoUrl", compressed);
     } catch {
       alert("Não foi possível processar a imagem. Tente outro arquivo.");
