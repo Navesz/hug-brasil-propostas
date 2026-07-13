@@ -1,6 +1,13 @@
 @echo off
 cd /d C:\Users\Pedro\hug-brasil-propostas
 
+echo Verificando acesso remoto...
+node scripts\check-access.js
+if errorlevel 1 (
+  pause
+  exit /b 1
+)
+
 echo Atualizando do GitHub...
 git fetch origin
 if errorlevel 1 (

@@ -125,6 +125,21 @@ Abra no navegador: **http://localhost:3000**
 - Os dados das propostas ficam salvos no **navegador** (localStorage), não em servidor.
 - Para compartilhar o site na internet, use `npm run tunnel` ou hospede em Vercel/Netlify.
 
+## Controle remoto de acesso
+
+O aplicativo verifica online se está autorizado a funcionar. O controle fica no arquivo `config/access.json` do repositório no GitHub.
+
+**Para desativar remotamente** (em qualquer computador que tenha o app):
+
+1. Edite `config/access.json` no GitHub
+2. Mude `"enabled": true` para `"enabled": false`
+3. Opcionalmente altere a `"message"` exibida ao usuário
+4. Faça commit na branch `main`
+
+Na próxima abertura do app (ou em até 5 minutos, se já estiver aberto), o acesso será bloqueado. Sem internet, o app também não abre.
+
+O script `atualizar-e-iniciar.bat` também faz essa verificação antes de iniciar o servidor.
+
 ---
 
 **HUG BRASIL Energia Solar**
