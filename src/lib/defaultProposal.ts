@@ -152,14 +152,17 @@ export function createDefaultProposal(novoOrcamento = false): PropostaSolar {
     descricaoProjeto:
       "A solução proposta foi desenvolvida para proporcionar redução dos custos com energia elétrica, maior previsibilidade financeira e continuidade operacional.",
 
-    empresaNome: "HUG BRASIL ENERGIA SOLAR",
-    empresaCnpj: "31.477.529/0001-24",
-    empresaContato: "Renata Sampaio – Gerente Comercial (21) 96999-5464",
-    empresaEndereco:
-      "Av. das Américas 297, sala 216 – Barra da Tijuca – Rio de Janeiro/RJ 22.631-000",
-    empresaSite: "www.hugbrasil.com",
-    representanteNome: "THIAGO CUPERTINO C FELIPE INSTALADORA",
-    representanteCnpj: "31.477.529/0001-24",
+    // Company and contact details are deployment configuration, not source code.
+    // Naming a real person and their mobile number here published third-party
+    // personal data in a public repository. Set these in the hosting environment
+    // (see .env.example); the form persists whatever the user types anyway.
+    empresaNome: process.env.NEXT_PUBLIC_EMPRESA_NOME ?? "",
+    empresaCnpj: process.env.NEXT_PUBLIC_EMPRESA_CNPJ ?? "",
+    empresaContato: process.env.NEXT_PUBLIC_EMPRESA_CONTATO ?? "",
+    empresaEndereco: process.env.NEXT_PUBLIC_EMPRESA_ENDERECO ?? "",
+    empresaSite: process.env.NEXT_PUBLIC_EMPRESA_SITE ?? "",
+    representanteNome: process.env.NEXT_PUBLIC_REPRESENTANTE_NOME ?? "",
+    representanteCnpj: process.env.NEXT_PUBLIC_REPRESENTANTE_CNPJ ?? "",
   };
 }
 
